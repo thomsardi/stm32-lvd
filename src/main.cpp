@@ -2,6 +2,7 @@
 #include <CANController.h>
 #include <STM32FreeRTOS.h>
 #include <Beastdevices_INA3221.h>
+#include <DataDef.h>
 
 #define ON1 PA5
 #define ON2 PA6
@@ -10,10 +11,15 @@
 #define OFF2 PB1
 #define OFF3 PB10
 
+#define FB1 PB14
+#define FB2 PB13
+#define FB3 PB12
+
 #define idCanbusEnergyMeter 0x1D40C8E7
 
 CANController can;
 Beastdevices_INA3221 ina3221b(INA3221_ADDR40_GND);
+AdditionalCANData additionalCanData;
 
 // TaskHandle_t relayTaskHandle;
 TaskHandle_t canSenderTaskHandle;
@@ -223,6 +229,10 @@ void ina3221Task()
   int current3bit1 = current[2];
   int current3bit2 = (current[2] - current3bit1) * 100;
 
+  additionalCanData.current[0] = current[0];
+  additionalCanData.current[1] = current[1];
+  additionalCanData.current[2] = current[2];
+
   msg.id = 0x1234abcd;
   msg.format = CAN_FORMAT::EXTENDED_FORMAT;
   msg.type = CAN_FRAME::DATA_FRAME;
@@ -277,7 +287,9 @@ void setup() {
   pinMode(OFF1, OUTPUT);
   pinMode(OFF2, OUTPUT);
   pinMode(OFF3, OUTPUT);
-
+  pinMode(FB1, INPUT);
+  pinMode(FB2, INPUT);
+  pinMode(FB3, INPUT);
   // xTaskCreate(relayTask,
   //   "RelayTask",
   //   configMINIMAL_STACK_SIZE,
@@ -324,6 +336,9 @@ void loop() {
     ina3221Task();
     lastTime = millis();
   }
+  additionalCanData.relayState.BIT_0 = digitalRead(FB1);
+  additionalCanData.relayState.BIT_1 = digitalRead(FB2);
+  additionalCanData.relayState.BIT_2 = digitalRead(FB3);
 }
 
 // put function definitions here:
