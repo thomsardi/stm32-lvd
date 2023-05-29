@@ -184,13 +184,30 @@ static void canSenderTask(void *arg)
   CAN_msg_t msg;
   while(1)
   {
-    if (xQueueReceive(canSenderTaskQueue, &msg, portMAX_DELAY) == pdTRUE) 
+    if (xQueueReceive(canSenderTaskQueue, &msg, 100) == pdTRUE) 
     {
-      Serial1.println("Send CAN");
-      // if (xSemaphoreTake(myLock, portMAX_DELAY) == pdTRUE)
-      // {
-        can.send(&msg);
-      // }
+      can.send(&msg);
+      Serial1.println("Send CAN current & relay");
+    }
+    else
+    {
+      // msg to keep the battery awake
+      CAN_msg_t msg;
+      msg.id = 0x12345678;
+      msg.format = CAN_FORMAT::EXTENDED_FORMAT;
+      msg.type = CAN_FRAME::DATA_FRAME;
+      msg.len = 8;
+      msg.data[0] = 1;
+      msg.data[1] = 2; // for relay contact on or off
+      msg.data[2] = 3;
+      msg.data[3] = 4;
+      msg.data[4] = 5;
+      msg.data[5] = 6;
+      msg.data[6] = 7;
+      msg.data[7] = 8;
+      can.send(&msg);
+      Serial1.println("Send CAN to wake up battery");
+
     }
     // vTaskDelay(1000);
   }
@@ -199,7 +216,6 @@ static void canSenderTask(void *arg)
 void ina3221Task()
 {
   int limitUnderAmpere = 0.2;
-  CAN_msg_t msg;
   
   float current[3];
   float voltage[3];
@@ -220,31 +236,19 @@ void ina3221Task()
   if (current[2] < limitUnderAmpere)
     current[2] = 0;
 
-  int current1bit1 = current[0];
-  int current1bit2 = (current[0] - current1bit1) * 100;
+  // int current1bit1 = current[0];
+  // int current1bit2 = (current[0] - current1bit1) * 100;
 
-  int current2bit1 = current[1];
-  int current2bit2 = (current[1] - current2bit1) * 100;
+  // int current2bit1 = current[1];
+  // int current2bit2 = (current[1] - current2bit1) * 100;
 
-  int current3bit1 = current[2];
-  int current3bit2 = (current[2] - current3bit1) * 100;
+  // int current3bit1 = current[2];
+  // int current3bit2 = (current[2] - current3bit1) * 100;
 
   additionalCanData.current[0] = current[0];
   additionalCanData.current[1] = current[1];
   additionalCanData.current[2] = current[2];
 
-  msg.id = 0x1234abcd;
-  msg.format = CAN_FORMAT::EXTENDED_FORMAT;
-  msg.type = CAN_FRAME::DATA_FRAME;
-  msg.len = 8;
-  msg.data[0] = 1;
-  msg.data[1] = 7; // for relay contact on or off
-  msg.data[2] = 1;
-  msg.data[3] = 2;
-  msg.data[4] = 3;
-  msg.data[5] = 4;
-  msg.data[6] = 5;
-  msg.data[7] = 6;
   // msg.data[2] = current1bit1;
   // msg.data[3] = current1bit2;
   // msg.data[4] = current2bit1;
@@ -260,7 +264,7 @@ void ina3221Task()
   // dataDummy[5] = current2bit2;
   // dataDummy[6] = current3bit1;
   // dataDummy[7] = current3bit2;
-  xQueueSend(canSenderTaskQueue, &msg, 0);
+  
   // sendCanbus(dataDummy);
 
   // Serial1.print("Channel 1: ");
@@ -299,8 +303,8 @@ void setup() {
 
   xTaskCreate(canSenderTask,
     "canSenderTask",
-    // configMINIMAL_STACK_SIZE,
-    64,
+    configMINIMAL_STACK_SIZE,
+    // 64,
     NULL,
     tskIDLE_PRIORITY + 1,
     &canSenderTaskHandle);
@@ -325,20 +329,65 @@ void setup() {
     Serial1.println("CAN1 initialize fail");
   }
   Serial1.println("CAN1 initialize success");
-
+  
+  uint32_t bank1, bank2;
+  bank1 = 0x12345678 << 3;
+  bank1 = bank1 + 0x04; // Ext
+  bank2 = 0xFFFFFFFC; // Must be IDE=1
+  // can.setFilter(0, 1, 0, 0, bank1, bank2);
+  // can.setFilter(0, 1, 0, 0, 0x02, 0x1FFFFFFF);
+  FilterConfig filterConfig = {
+    .idConfig = {
+      .id = 0x750C860,
+      // .id = 0x0,
+      .ideMode = STANDARD_FORMAT,
+    },
+    .maskConfig = {
+      .mask = 0xFF0FFF0,
+      // .mask = 0x0,
+      .ideCheck = FilterConfig::IdeCheck::IDE_UNCHECKED,
+      .rtrCheck = FilterConfig::RtrCheck::RTR_UNCHECKED,
+    }
+  };
+  can.filter(filterConfig);
   vTaskStartScheduler();
 }
 
 void loop() {
   can.loop();
+  additionalCanData.relayState.BIT_0 = digitalRead(FB1);
+  additionalCanData.relayState.BIT_1 = digitalRead(FB2);
+  additionalCanData.relayState.BIT_2 = digitalRead(FB3);
   if (millis() - lastTime > 1000)
   {
     ina3221Task();
     lastTime = millis();
+
+    int current1bit1 = additionalCanData.current[0];
+    int current1bit2 = (additionalCanData.current[0] - current1bit1) * 100;
+
+    int current2bit1 = additionalCanData.current[1];
+    int current2bit2 = (additionalCanData.current[1] - current2bit1) * 100;
+
+    int current3bit1 = additionalCanData.current[2];
+    int current3bit2 = (additionalCanData.current[2] - current3bit1) * 100;
+
+    CAN_msg_t msg;
+    msg.id = 0x1D40C8E7;
+    msg.format = CAN_FORMAT::EXTENDED_FORMAT;
+    msg.type = CAN_FRAME::DATA_FRAME;
+    msg.len = 8;
+    msg.data[0] = 1;
+    msg.data[1] = additionalCanData.relayState.val; // for relay contact on or off
+    msg.data[2] = current1bit1;
+    msg.data[3] = current1bit2;
+    msg.data[4] = current2bit1;
+    msg.data[5] = current2bit2;
+    msg.data[6] = current3bit1;
+    msg.data[7] = current3bit2;
+    xQueueSend(canSenderTaskQueue, &msg, portMAX_DELAY);
   }
-  additionalCanData.relayState.BIT_0 = digitalRead(FB1);
-  additionalCanData.relayState.BIT_1 = digitalRead(FB2);
-  additionalCanData.relayState.BIT_2 = digitalRead(FB3);
+
 }
 
 // put function definitions here:

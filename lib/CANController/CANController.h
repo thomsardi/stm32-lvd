@@ -6,11 +6,11 @@
 
 // #define idCanbusEnergyMeter 490784999
 
-
 class CANController {
     public:
         CANController();
         void loop();
+        void filter(const FilterConfig &filterConfig);
         void setFilter(uint8_t index, uint8_t scale, uint8_t mode, uint8_t fifo, uint32_t bank1, uint32_t bank2);
         bool init(BITRATE bitrate, int remap);
         void receive(CAN_msg_t *CAN_rx_msg);

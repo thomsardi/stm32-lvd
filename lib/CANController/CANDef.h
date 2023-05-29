@@ -50,4 +50,44 @@ typedef const struct
     uint8_t BRP;
 } CAN_bit_timing_config_t;
 
+struct FilterConfig 
+{
+    enum IdeCheck {
+        IDE_UNCHECKED = 0,
+        IDE_CHECKED = 1
+    };
+
+    enum RtrCheck {
+        RTR_UNCHECKED = 0,
+        RTR_CHECKED = 1
+    };
+
+    enum IdeMode {
+        STANDARD_ONLY = 0,
+        EXTENDED_ONLY = 1
+    };
+
+    enum RtrMode {
+        DATA_ONLY = 0,
+        REMOTE_ONLY = 1
+    };
+
+    struct IdConfig 
+    {
+        uint32_t id;
+        CAN_FORMAT ideMode;
+    };
+    IdConfig idConfig;
+
+    struct MaskConfig
+    {
+        uint32_t mask;
+        IdeCheck ideCheck = IDE_UNCHECKED;
+        RtrCheck rtrCheck = RTR_UNCHECKED;
+        IdeMode ideMode;
+        RtrMode rtrMode;
+    };
+    MaskConfig maskConfig;
+};
+
 CAN_bit_timing_config_t can_configs[6] = {{2, 13, 45}, {2, 15, 20}, {2, 13, 18}, {2, 13, 9}, {2, 15, 4}, {2, 15, 2}};

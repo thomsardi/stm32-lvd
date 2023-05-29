@@ -5,6 +5,71 @@ CANController::CANController()
 
 }
 
+void CANController::filter(const FilterConfig &filterConfig)
+{
+    uint32_t bank1, bank2;
+    // bank2 = mask << 3;
+    switch (filterConfig.idConfig.ideMode)
+    {
+        case CAN_FORMAT::EXTENDED_FORMAT :
+            if (filterConfig.idConfig.id > 0x1fffffff)
+            {
+                return;
+            }
+            bank1 = filterConfig.idConfig.id << 3;
+            break;
+        
+        default:
+            if (filterConfig.idConfig.id > 0x7ff)
+            {
+                return;
+            }
+            bank1 = filterConfig.idConfig.id << 21;
+            break;
+    }
+    if (filterConfig.maskConfig.mask > 0x7FFFFFFF)
+    {
+        return;
+    }
+
+    bank2 = filterConfig.maskConfig.mask << 3;
+    
+    switch (filterConfig.maskConfig.ideCheck)
+    {
+        bank2 = bank2 + (1 << 2);
+        case FilterConfig::IdeCheck::IDE_CHECKED :
+            if (filterConfig.maskConfig.ideMode == FilterConfig::IdeMode::EXTENDED_ONLY)
+            {
+                bank1 = bank1 + (1 << 2);
+            }
+            break;
+        default:
+            break;
+    }
+
+    switch (filterConfig.maskConfig.rtrCheck)
+    {
+        case FilterConfig::RtrCheck::RTR_CHECKED :
+            bank2 = bank2 + (1 << 1);
+            if (filterConfig.maskConfig.rtrMode == FilterConfig::RtrMode::REMOTE_ONLY)
+            {
+                bank1 = bank1 + (1 << 1);
+            }
+            break;
+        default:
+            break;
+    }
+    
+
+    Serial1.println("Filter bank 1 : " + String(bank1));
+    Serial1.println("Filter bank 2 : " + String(bank2));
+    // bank1 = msgId << 3;
+    // bank1 = bank1 + 0x04; // Ext
+    // bank2 = 0xFFFFFFFC; // Must be IDE=1
+    // bank2 = mask << 3;
+    setFilter(0, 1, 0, 0, bank1, bank2);
+}
+
 bool CANController::init(BITRATE bitrate, int remap)
 {
     // Reference manual
@@ -90,13 +155,13 @@ bool CANController::init(BITRATE bitrate, int remap)
     CAN1->BTR |= (((can_configs[bitrate].TS2 - 1) & 0x07) << 20) | (((can_configs[bitrate].TS1 - 1) & 0x0F) << 16) | ((can_configs[bitrate].BRP - 1) & 0x1FF);
 
     // Configure Filters to default values
-    CAN1->FMR |= 0x1UL;      // Set to filter initialization mode
-    CAN1->FMR &= 0xFFFFC0FF; // Clear CAN2 start bank
+    // CAN1->FMR |= 0x1UL;      // Set to filter initialization mode
+    // CAN1->FMR &= 0xFFFFC0FF; // Clear CAN2 start bank
 
     // bxCAN has 28 filters.
     // These filters are used for both CAN1 and CAN2.
     // STM32F103 has only CAN1, so all 28 are used for CAN1
-    CAN1->FMR |= 0x1C << 8; // Assign all filters to CAN1
+    // CAN1->FMR |= 0x1C << 8; // Assign all filters to CAN1
 
     // Set fileter 0
     // Single 32-bit scale configuration
@@ -104,8 +169,9 @@ bool CANController::init(BITRATE bitrate, int remap)
     // Filter assigned to FIFO 0
     // Filter bank register to all 0
     setFilter(0, 1, 0, 0, 0x0UL, 0x0UL);
+    
 
-    CAN1->FMR &= ~(0x1UL); // Deactivate initialization mode
+    // CAN1->FMR &= ~(0x1UL); // Deactivate initialization mode
 
     uint16_t TimeoutMilliseconds = 1000;
     bool can1 = false;
@@ -168,6 +234,15 @@ void CANController::setFilter(uint8_t index, uint8_t scale, uint8_t mode, uint8_
 
     CAN1->FA1R &= ~(0x1UL << index); // Deactivate filter
 
+    // Configure Filters to default values
+    CAN1->FMR |= 0x1UL;      // Set to filter initialization mode
+    CAN1->FMR &= 0xFFFFC0FF; // Clear CAN2 start bank
+
+    // bxCAN has 28 filters.
+    // These filters are used for both CAN1 and CAN2.
+    // STM32F103 has only CAN1, so all 28 are used for CAN1
+    CAN1->FMR |= 0x1C << 8; // Assign all filters to CAN1
+
     if (scale == 0)
     {
         CAN1->FS1R &= ~(0x1UL << index); // Set filter to Dual 16-bit scale configuration
@@ -198,6 +273,7 @@ void CANController::setFilter(uint8_t index, uint8_t scale, uint8_t mode, uint8_
     CAN1->sFilterRegister[index].FR2 = bank2; // Set filter bank registers2
 
     CAN1->FA1R |= (0x1UL << index); // Activate filter
+    CAN1->FMR &= ~(0x1UL); // Deactivate initialization mode
 }
 
 /**
