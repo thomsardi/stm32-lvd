@@ -446,7 +446,7 @@ void CANController::loop()
     CAN_msg_t rxMsg;
     if(available())
     {
-        Serial1.println("Incoming Data");
+        // Serial1.println("Incoming Data");
         receive(&rxMsg);
         if(_handler)
         {
