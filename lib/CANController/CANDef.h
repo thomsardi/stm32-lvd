@@ -72,10 +72,23 @@ struct FilterConfig
         REMOTE_ONLY = 1
     };
 
+    enum CanFormatAcceptanceMode {
+        ANY_FORMAT = 0,
+        STANDARD_FORMAT = 1,
+        EXTENDED_FORMAT = 2,
+    };
+
+    enum CanFrameAcceptanceMode {
+        ANY_FRAME = 0,
+        DATA_FRAME = 1,
+        REMOTE_FRAME = 2
+    };
+
     struct IdConfig 
     {
         uint32_t id;
-        CAN_FORMAT ideMode;
+        CanFormatAcceptanceMode ideMode;
+        CanFrameAcceptanceMode rtrMode;
     };
     IdConfig idConfig;
 

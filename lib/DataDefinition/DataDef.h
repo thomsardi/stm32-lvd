@@ -64,6 +64,19 @@ struct AlarmParameter
     int vsatAlarmVoltage;
     int otherAlarmVoltage;
     int btsAlarmVoltage;
+    int nominalBattery = 480;
+    uint16_t tolerance = 200; // in .01 percent
+    
+    int getVsatUpperThreshold() {
+        return vsatAlarmVoltage + (nominalBattery * tolerance / 10000);
+    }
+    int getOtherUpperThreshold() {
+        return otherAlarmVoltage + (nominalBattery * tolerance / 10000);
+    }
+    int getBtsUpperThreshold() {
+        return btsAlarmVoltage + (nominalBattery * tolerance / 10000);
+    }
+
 };
 
 
@@ -78,6 +91,22 @@ struct AdditionalCANData {
         uint8_t val;
     } relayState; 
     float current[3];
+};
+
+union EhubRelayWrite {
+    struct 
+    {
+        uint8_t vsat : 1;
+        uint8_t bts : 1;
+        uint8_t other : 1;
+        uint8_t :5;
+    };
+    uint8_t val;
+};
+
+struct KeepAliveCounter {
+    uint32_t cnt;
+    uint32_t lastCnt;
 };
 
 enum DataType {

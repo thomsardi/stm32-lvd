@@ -5,39 +5,56 @@ CANController::CANController()
 
 }
 
-void CANController::filter(const FilterConfig &filterConfig)
+bool CANController::filter(const FilterConfig &filterConfig)
 {
     uint32_t bank1, bank2;
     // bank2 = mask << 3;
+    
     switch (filterConfig.idConfig.ideMode)
     {
-        case CAN_FORMAT::EXTENDED_FORMAT :
-            if (filterConfig.idConfig.id > 0x1fffffff)
+        case FilterConfig::CanFormatAcceptanceMode::EXTENDED_FORMAT :
+            if (filterConfig.idConfig.id > 0x1FFFFFFF)
             {
-                return;
+                return 0;
             }
             bank1 = filterConfig.idConfig.id << 3;
+            bank1 = bank1 + (1 << 2);
             break;
-        
-        default:
-            if (filterConfig.idConfig.id > 0x7ff)
+        case FilterConfig::CanFormatAcceptanceMode::STANDARD_FORMAT :
+            if (filterConfig.idConfig.id > 0x7FF)
             {
-                return;
+                return 0;
             }
             bank1 = filterConfig.idConfig.id << 21;
             break;
+
+        default:
+            break;
     }
+
+    switch (filterConfig.idConfig.rtrMode)
+    {
+        case CAN_FRAME::REMOTE_FRAME :
+            bank1 = bank1 + (1 << 1);
+            break;
+        
+        default:
+            break;
+    }
+
     if (filterConfig.maskConfig.mask > 0x7FFFFFFF)
     {
-        return;
+        return 0;
     }
 
     bank2 = filterConfig.maskConfig.mask << 3;
-    
+    // bank1 = filterConfig.idConfig.id;
+    // bank2 = filterConfig.maskConfig.mask;
+
     switch (filterConfig.maskConfig.ideCheck)
     {
-        bank2 = bank2 + (1 << 2);
         case FilterConfig::IdeCheck::IDE_CHECKED :
+            bank2 = bank2 + (1 << 2);
             if (filterConfig.maskConfig.ideMode == FilterConfig::IdeMode::EXTENDED_ONLY)
             {
                 bank1 = bank1 + (1 << 2);
@@ -61,13 +78,16 @@ void CANController::filter(const FilterConfig &filterConfig)
     }
     
 
-    Serial1.println("Filter bank 1 : " + String(bank1));
-    Serial1.println("Filter bank 2 : " + String(bank2));
+    Serial1.print("Filter bank 1 : ");
+    Serial1.println(bank1, HEX);
+    Serial1.print("Filter bank 2 : ");
+    Serial1.println(bank2, HEX);
     // bank1 = msgId << 3;
     // bank1 = bank1 + 0x04; // Ext
     // bank2 = 0xFFFFFFFC; // Must be IDE=1
     // bank2 = mask << 3;
     setFilter(0, 1, 0, 0, bank1, bank2);
+    return 1;
 }
 
 bool CANController::init(BITRATE bitrate, int remap)
