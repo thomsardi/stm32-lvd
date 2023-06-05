@@ -5,6 +5,14 @@ BatteryProcessing::BatteryProcessing()
 
 }
 
+/**
+ * @brief   method to get pack voltage from battery can data
+ * @param   data    an array with can bus data
+ * @param   startIndex  start index of the array
+ * @param   length  number of bytes that need to be concatenated
+ * @param   maxValue the maxValue to calibrate the result
+ * @return  value of pack voltage in 0.1V. e.g 512 means 51.2V
+*/
 int BatteryProcessing::getPackVoltage(uint8_t data[], int startIndex, size_t length, int maxValue)
 {
     int result = 0;
@@ -19,6 +27,14 @@ int BatteryProcessing::getPackVoltage(uint8_t data[], int startIndex, size_t len
     return result;
 }
 
+/**
+ * @brief   method to get pack current from battery can data
+ * @param   data    an array with can bus data
+ * @param   startIndex  start index of the array
+ * @param   length  number of bytes that need to be concatenated
+ * @param   maxValue the maxValue to calibrate the result
+ * @return  current value in 0.1 A, e.g value 98 means 9.8 A
+*/
 int BatteryProcessing::getPackCurrent(uint8_t data[], int startIndex, size_t length, int maxValue)
 {
     int result = 0;
@@ -33,6 +49,14 @@ int BatteryProcessing::getPackCurrent(uint8_t data[], int startIndex, size_t len
     return result;
 }
 
+/**
+ * @brief   method to get pack SoC from battery can data
+ * @param   data    an array with can bus data
+ * @param   startIndex  start index of the array
+ * @param   length  number of bytes that need to be concatenated
+ * @param   maxValue the maxValue to calibrate the result
+ * @return  SoC value in 0.1 percent, e.g value 99 means it is 9.9%
+*/
 int BatteryProcessing::getPackSoc(uint8_t data[], int startIndex, size_t length, int maxValue)
 {
     int result = 0;
@@ -47,6 +71,14 @@ int BatteryProcessing::getPackSoc(uint8_t data[], int startIndex, size_t length,
     return result;
 }
 
+/**
+ * @brief   method to get pack temperature from battery can data
+ * @param   data    an array with can bus data
+ * @param   startIndex  start index of the array
+ * @param   length  number of bytes that need to be concatenated
+ * @param   maxValue the maxValue to calibrate the result
+ * @return  the value in celcius
+*/
 int BatteryProcessing::getTemperature(uint8_t data[], int startIndex, size_t length, int maxValue)
 {
     int result = 0;
@@ -61,6 +93,11 @@ int BatteryProcessing::getTemperature(uint8_t data[], int startIndex, size_t len
     return result;
 }
 
+/**
+ * @brief   method to get mosfet status (dmos and cmos) of battery from can data
+ * @param   data    an array with can bus data
+ * @param   batteryData struct of battery data, refer to CANDef.h for more information
+*/
 void BatteryProcessing::updateMosfetStatus(uint8_t data, BatteryData &batteryData)
 {
     switch (data)

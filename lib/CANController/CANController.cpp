@@ -5,6 +5,11 @@ CANController::CANController()
 
 }
 
+/**
+ * @brief   set filter for CAN bus, pass the config structure into this method to configure filter
+ * @param   filterConfig
+ *          @note   has a member of idConfig struct and maskConfig
+*/
 bool CANController::filter(const FilterConfig &filterConfig)
 {
     uint32_t bank1, bank2;
@@ -90,6 +95,12 @@ bool CANController::filter(const FilterConfig &filterConfig)
     return 1;
 }
 
+/**
+ * @brief   init can bus
+ * @param   bitrate bit rate of can bus
+ * @param   remap   map into certain pin of stm32
+ * @return  true when successfully initialize, else will produce false
+*/
 bool CANController::init(BITRATE bitrate, int remap)
 {
     // Reference manual
@@ -401,6 +412,10 @@ void CANController::send(CAN_msg_t *CAN_tx_msg)
     }
 }
 
+/**
+ * @brief   detect can packet data
+ * @return  data received in buffer as uint8_t format
+*/
 uint8_t CANController::available(void)
 {
     // Check for pending FIFO 0 messages
@@ -416,6 +431,10 @@ uint8_t CANController::available(void)
 //         };
 // }
 
+/**
+ * @brief   send data of TX message buffer
+ * @param   txMsg   message buffer, refer to CAN_msg_t structure
+*/
 void CANController::sendData(CAN_msg_t *txMsg)
 {
     // CAN_msg_t CAN_TX_msg;
@@ -461,6 +480,9 @@ void CANController::sendData(CAN_msg_t *txMsg)
 //     }
 // }
 
+/**
+ * @brief   method to regularly check availability data on can bus line, this method must be called in routine or else the data will not get updated
+*/
 void CANController::loop()
 {
     CAN_msg_t rxMsg;
@@ -475,6 +497,10 @@ void CANController::loop()
     }
 }
 
+/**
+ * @brief   register handler / callback when can packet data is arrived
+ * @param   handler function which return nothing and takes a CAN_msg_t as parameter
+*/
 void CANController::onReceive(void (*handler)(CAN_msg_t))
 {
     _handler = handler;
