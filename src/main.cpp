@@ -136,7 +136,7 @@ void canHandler(CAN_msg_t msg)
 
   if (frameId == 0x1D42C8E8) //ehub write lvd config
   {
-    // Serial1.println("Write lvd config");
+    Serial1.println("Write lvd config");
     voltageAlarm.vsatAlarmVoltage = (msg.data[1] << 8) + msg.data[0];
     uint16_t temp;
     EEPROM.get(LVD_VSAT_ADDR, temp);
@@ -201,7 +201,7 @@ void canHandler(CAN_msg_t msg)
 
   if(frameId == 0x1D43C8E8) //ehub write system config
   {
-    // Serial1.println("Write system config");
+    Serial1.println("Write system config");
     voltageAlarm.nominalBattery = (msg.data[1] << 8) + msg.data[0];
     uint16_t temp;
     EEPROM.get(NOMINAL_BAT_ADDR, temp);
@@ -230,7 +230,7 @@ void canHandler(CAN_msg_t msg)
 
   if(frameId == 0x1D41C8E8) //ehub keep alive & override
   {
-    // Serial1.println("Keep alive");
+    Serial1.println("Keep alive");
     uint16_t id = (msg.data[1] << 8) + msg.data[0];
     // keepAliveCounter.cnt = (frameId & 0xFFFF0000) + (msg.data[3] << 24) + (msg.data[2] << 16) + (msg.data[1] << 8) + msg.data[0];
     // if (id == uniqueId)
@@ -250,7 +250,7 @@ void canHandler(CAN_msg_t msg)
 
   if(frameId == 0x1D40C8E8) //ehub write relay
   {
-    // Serial1.println("Ehub relay write");
+    Serial1.println("Ehub relay write");
     switch (msg.data[0])
     {
     case 1:
@@ -423,14 +423,14 @@ static void relayTask(void *arg)
     
     if(lostConnectionCounter > 50)
     {
-      Serial1.println("lost connection from Ehub");
+      // Serial1.println("lost connection from Ehub");
       isOverriden = false;
       lostConnectionCounter = 0;
     }
 
     if(!isOverriden)
     {
-      Serial1.println("Is Not Overriden");
+      // Serial1.println("Is Not Overriden");
       if (averageVoltage <= voltageAlarm.btsAlarmVoltage)
       {
         btsOn = false;
@@ -793,6 +793,8 @@ void setup() {
     EEPROM.get(UNIQUE_ID_ADDR, temp);
     Serial1.println("uniqueid : " + String(temp));
     uniqueId = temp;
+    EEPROM.get(FLAG_SET_ADDR, temp);
+    Serial1.println("flag set : " + String(temp));
   }
   else
   {
@@ -835,12 +837,20 @@ void setup() {
     },
     .maskConfig = {
       // .mask = 0xFF8FFC0,
-      .mask = 0xE5D8FF40,
+      .mask = 0x5D8FF40,
       .ideCheck = FilterConfig::IdeCheck::IDE_UNCHECKED,
       .rtrCheck = FilterConfig::RtrCheck::RTR_UNCHECKED,
     }
   };
-  can.filter(filterConfig);
+  bool result = can.filter(filterConfig);
+  if(result)
+  {
+    Serial1.println("Success set filter");
+  }
+  else
+  {
+    Serial1.println("Failed to set filter");
+  }
   vTaskStartScheduler();
 }
 
