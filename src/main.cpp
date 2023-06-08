@@ -17,13 +17,16 @@
 #define FB2 PB13
 #define FB3 PB12
 
-#define LVD_VSAT_ADDR 0
-#define LVD_OTHER_ADDR 4
-#define LVD_BTS_ADDR 8
-#define LVD_TOLERANCE_ADDR 12
-#define NOMINAL_BAT_ADDR 16
-#define UNIQUE_ID_ADDR 20
-#define FLAG_SET_ADDR 24
+#define LVD_LOW_VSAT_ADDR 0
+#define LVD_LOW_OTHER_ADDR 4
+#define LVD_LOW_BTS_ADDR 8
+#define LVD_RECONNECT_VSAT_ADDR 12
+#define LVD_RECONNECT_OTHER_ADDR  16
+#define LVD_RECONNECT_BTS_ADDR  20
+#define LVD_TOLERANCE_ADDR 24
+#define NOMINAL_BAT_ADDR 28
+#define UNIQUE_ID_ADDR 32
+#define FLAG_SET_ADDR 36
 
 #define idCanbusEnergyMeter 0x1D40C8E7
 
@@ -31,7 +34,7 @@ CANController can;
 Beastdevices_INA3221 ina3221b(INA3221_ADDR40_GND);
 BatteryProcessing batProc;
 AdditionalCANData additionalCanData;
-AlarmParameter voltageAlarm = {460, 460, 480};
+AlarmParameter voltageAlarm = {4600, 4600, 4700, 4700, 4700, 4800};
 TaskHandle_t relayTaskHandle;
 TaskHandle_t canSenderTaskHandle;
 // TaskHandle_t ina3221TaskHandle;
@@ -134,57 +137,58 @@ void canHandler(CAN_msg_t msg)
     break;
   }
 
-  if (frameId == 0x1D42C8E8) //ehub write lvd config
+  if (frameId == 0x1D42C8E8) //ehub write lvd low config
   {
-    Serial1.println("Write lvd config");
-    voltageAlarm.vsatAlarmVoltage = (msg.data[1] << 8) + msg.data[0];
+    Serial1.println("Write lvd low config");
+    voltageAlarm.vsatLowVoltage = (msg.data[1] << 8) + msg.data[0];
     uint16_t temp;
-    EEPROM.get(LVD_VSAT_ADDR, temp);
-    if(temp != voltageAlarm.vsatAlarmVoltage)
+    EEPROM.get(LVD_LOW_VSAT_ADDR, temp);
+    if(temp != voltageAlarm.vsatLowVoltage)
     {
       Serial1.println("Write to EEPROM");
-      EEPROM.put(LVD_VSAT_ADDR, voltageAlarm.vsatAlarmVoltage);
+      EEPROM.put(LVD_LOW_VSAT_ADDR, voltageAlarm.vsatLowVoltage);
     }
     else
     {
       Serial1.println("Same data");
     }
 
-    voltageAlarm.otherAlarmVoltage = (msg.data[3] << 8) + msg.data[2];
-    EEPROM.get(LVD_OTHER_ADDR, temp);
-    if(temp != voltageAlarm.otherAlarmVoltage)
+    voltageAlarm.otherLowVoltage = (msg.data[3] << 8) + msg.data[2];
+    EEPROM.get(LVD_LOW_OTHER_ADDR, temp);
+    if(temp != voltageAlarm.otherLowVoltage)
     {
       Serial1.println("Write to EEPROM");
-      EEPROM.put(LVD_OTHER_ADDR, voltageAlarm.otherAlarmVoltage);
+      EEPROM.put(LVD_LOW_OTHER_ADDR, voltageAlarm.otherLowVoltage);
     }
     else
     {
       Serial1.println("Same data");
     }
 
-    voltageAlarm.btsAlarmVoltage = (msg.data[5] << 8) + msg.data[4];
-    EEPROM.get(LVD_BTS_ADDR, temp);
-    if(temp != voltageAlarm.btsAlarmVoltage)
+    voltageAlarm.btsLowVoltage = (msg.data[5] << 8) + msg.data[4];
+    EEPROM.get(LVD_LOW_BTS_ADDR, temp);
+    if(temp != voltageAlarm.btsLowVoltage)
     {
       Serial1.println("Write to EEPROM");
-      EEPROM.put(LVD_BTS_ADDR, voltageAlarm.btsAlarmVoltage);
+      EEPROM.put(LVD_LOW_BTS_ADDR, voltageAlarm.btsLowVoltage);
     }
     else
     {
       Serial1.println("Same data");
     }
 
-    voltageAlarm.tolerance = (msg.data[7] << 8) + msg.data[6];
-    EEPROM.get(LVD_TOLERANCE_ADDR, temp);
-    if(temp != voltageAlarm.tolerance)
-    {
-      Serial1.println("Write to EEPROM");
-      EEPROM.put(LVD_TOLERANCE_ADDR, voltageAlarm.tolerance);
-    }
-    else
-    {
-      Serial1.println("Same data");
-    }
+    // voltageAlarm.tolerance = (msg.data[7] << 8) + msg.data[6];
+    // EEPROM.get(LVD_TOLERANCE_ADDR, temp);
+    // if(temp != voltageAlarm.tolerance)
+    // {
+    //   Serial1.println("Write to EEPROM");
+    //   EEPROM.put(LVD_TOLERANCE_ADDR, voltageAlarm.tolerance);
+    // }
+    // else
+    // {
+    //   Serial1.println("Same data");
+    // }
+
     CAN_msg_t response;
     response.id = (frameId & 0x0000FFFF) + ((frameId & 0x00FF0000) << 8) + ((frameId & 0xFF000000) >> 8);
     Serial1.print("Response Id : ");
@@ -199,7 +203,61 @@ void canHandler(CAN_msg_t msg)
     xQueueSend(canSenderTaskQueue, &response, 200);
   }
 
-  if(frameId == 0x1D43C8E8) //ehub write system config
+  if (frameId == 0x1D43C8E8) //ehub write lvd reconnect config
+  {
+    Serial1.println("Write lvd reconnect config");
+    voltageAlarm.vsatReconnectVoltage = (msg.data[1] << 8) + msg.data[0];
+    uint16_t temp;
+    EEPROM.get(LVD_RECONNECT_VSAT_ADDR, temp);
+    if(temp != voltageAlarm.vsatReconnectVoltage)
+    {
+      Serial1.println("Write to EEPROM");
+      EEPROM.put(LVD_RECONNECT_VSAT_ADDR, voltageAlarm.vsatReconnectVoltage);
+    }
+    else
+    {
+      Serial1.println("Same data");
+    }
+
+    voltageAlarm.otherReconnectVoltage = (msg.data[3] << 8) + msg.data[2];
+    EEPROM.get(LVD_RECONNECT_OTHER_ADDR, temp);
+    if(temp != voltageAlarm.otherReconnectVoltage)
+    {
+      Serial1.println("Write to EEPROM");
+      EEPROM.put(LVD_RECONNECT_OTHER_ADDR, voltageAlarm.otherReconnectVoltage);
+    }
+    else
+    {
+      Serial1.println("Same data");
+    }
+
+    voltageAlarm.btsReconnectVoltage = (msg.data[5] << 8) + msg.data[4];
+    EEPROM.get(LVD_RECONNECT_BTS_ADDR, temp);
+    if(temp != voltageAlarm.btsReconnectVoltage)
+    {
+      Serial1.println("Write to EEPROM");
+      EEPROM.put(LVD_RECONNECT_BTS_ADDR, voltageAlarm.btsReconnectVoltage);
+    }
+    else
+    {
+      Serial1.println("Same data");
+    }
+
+    CAN_msg_t response;
+    response.id = (frameId & 0x0000FFFF) + ((frameId & 0x00FF0000) << 8) + ((frameId & 0xFF000000) >> 8);
+    Serial1.print("Response Id : ");
+    Serial1.println(response.id, HEX);
+    response.format = CAN_FORMAT::EXTENDED_FORMAT;
+    response.type = CAN_FRAME::DATA_FRAME;
+    response.len = msg.len;
+    for (size_t i = 0; i < msg.len; i++)
+    {
+      response.data[i] = msg.data[i];
+    }
+    xQueueSend(canSenderTaskQueue, &response, 200);
+  }
+
+  if(frameId == 0x1D44C8E8) //ehub write system config
   {
     Serial1.println("Write system config");
     voltageAlarm.nominalBattery = (msg.data[1] << 8) + msg.data[0];
@@ -379,6 +437,7 @@ static void relayTask(void *arg)
   bool btsOnSimState = false;
   bool vsatOnSimState = false;
   bool otherOnSimState = false;
+  uint8_t timeToShow = 0;
   uint8_t receivedData;
   int32_t totalVoltage = 0;
   uint8_t detectedBattery = 0;
@@ -401,17 +460,21 @@ static void relayTask(void *arg)
         continue;
       }
     }
-    // Serial1.println("Detected Battery : " + String(detectedBattery));
+    
     averageVoltage = totalVoltage / detectedBattery;
-    // Serial1.println("Average Pack Voltage : " + String(averageVoltage));
-
-    // Serial1.println("Bts Voltage Alarm : " + String(voltageAlarm.btsAlarmVoltage));
-    // Serial1.println("Bts Upper Threshold : " + String(voltageAlarm.getBtsUpperThreshold()));
-    // Serial1.println("Vsat Voltage Alarm : " + String(voltageAlarm.vsatAlarmVoltage));
-    // Serial1.println("Vsat Upper Threshold : " + String(voltageAlarm.getVsatUpperThreshold()));
-    // Serial1.println("Other Voltage Alarm : " + String(voltageAlarm.otherAlarmVoltage));
-    // Serial1.println("Other Upper Threshold : " + String(voltageAlarm.getOtherUpperThreshold()));
-
+    if(timeToShow > 5)
+    {
+      Serial1.println("Detected Battery : " + String(detectedBattery));
+      Serial1.println("Average Pack Voltage : " + String(averageVoltage));
+      Serial1.println("Bts Voltage Alarm : " + String(voltageAlarm.btsLowVoltage));
+      Serial1.println("Bts Upper Threshold : " + String(voltageAlarm.btsReconnectVoltage));
+      Serial1.println("Vsat Voltage Alarm : " + String(voltageAlarm.vsatLowVoltage));
+      Serial1.println("Vsat Upper Threshold : " + String(voltageAlarm.vsatReconnectVoltage));
+      Serial1.println("Other Voltage Alarm : " + String(voltageAlarm.otherLowVoltage));
+      Serial1.println("Other Upper Threshold : " + String(voltageAlarm.otherReconnectVoltage));
+      timeToShow = 0;
+    }
+    
     if (keepAliveCounter.lastCnt != keepAliveCounter.cnt)
     {
       keepAliveCounter.lastCnt = keepAliveCounter.cnt;
@@ -423,23 +486,23 @@ static void relayTask(void *arg)
     
     if(lostConnectionCounter > 50)
     {
-      // Serial1.println("lost connection from Ehub");
+      Serial1.println("lost connection from Ehub");
       isOverriden = false;
       lostConnectionCounter = 0;
     }
 
     if(!isOverriden)
     {
-      // Serial1.println("Is Not Overriden");
-      if (averageVoltage <= voltageAlarm.btsAlarmVoltage)
+      Serial1.println("Is Not Overriden");
+      if (averageVoltage <= voltageAlarm.btsLowVoltage)
       {
         btsOn = false;
       }
-      if (averageVoltage <= voltageAlarm.vsatAlarmVoltage)
+      if (averageVoltage <= voltageAlarm.vsatLowVoltage)
       {
         vsatOn = false;
       }
-      if (averageVoltage <= voltageAlarm.otherAlarmVoltage)
+      if (averageVoltage <= voltageAlarm.otherLowVoltage)
       {
         otherOn = false;
       }
@@ -450,103 +513,98 @@ static void relayTask(void *arg)
        * @details when vsat should be off, it will check the feedback, if it's still connected, re - trigger relay again. the state
        *          will get flipped when the voltage reach voltage alarm + tolerance
       */
-      if (vsatOn) //if bts should be on
+      if (vsatOn) //if vsat relay should be on
       {
-        // if(!additionalCanData.relayState.vsat || !vsatOnSimState) //if feedback still off, re-trigger relay
+        // if(!additionalCanData.relayState.vsat) //if feedback still off, re-trigger relay
         if(!vsatOnSimState) //if feedback still off, re-trigger relay
         {
           Serial1.println("===Vsat On===");
           vsatOnSimState = true;
           ehubRelay.vsat = true;
-          // vsatON();
+          vsatON();
         }
       }
-      else //if bts should be off
+      else //if vsat relay should be off
       {
-        // if(additionalCanData.relayState.vsat || vsatOnSimState) //if feedback still on, re-trigger relay
+        // if(additionalCanData.relayState.vsat) //if feedback still on, re-trigger relay
         if(vsatOnSimState) //if feedback still on, re-trigger relay
         {
           Serial1.println("===Vsat Off===");
           vsatOnSimState = false;
           ehubRelay.vsat = false;
-          // vsatOFF();
+          vsatOFF();
         }
-        else
+        // if(averageVoltage >= voltageAlarm.getVsatUpperThreshold())
+        if(averageVoltage >= voltageAlarm.vsatReconnectVoltage)
         {
-          if(averageVoltage >= voltageAlarm.getVsatUpperThreshold())
-          {
-            vsatOn = true;
-          }      
-        }
+          vsatOn = true;
+        }      
+        
       }
       
-      if (btsOn) //if bts should be on
+      if (btsOn) //if bts relay should be on
       {
-        // if(!additionalCanData.relayState.bts || !btsOnSimState) //if feedback still off, re-trigger relay
+        // if(!additionalCanData.relayState.bts) //if feedback still off, re-trigger relay
         if(!btsOnSimState) //if feedback still off, re-trigger relay
         {
           Serial1.println("===Bts On===");
           btsOnSimState = true;
           ehubRelay.bts = true;
-          // btsON();
+          btsON();
         }      
       }
-      else //if bts should be off
+      else //if bts relay should be off
       {
-        // if(additionalCanData.relayState.bts || btsOnSimState) //if feedback still on, re-trigger relay
+        // if(additionalCanData.relayState.bts) //if feedback still on, re-trigger relay
         if(btsOnSimState) //if feedback still on, re-trigger relay
         {
           Serial1.println("===Bts Off===");
           btsOnSimState = false;
           ehubRelay.bts = false;
-          // btsOFF();
+          btsOFF();
         }
-        else
+        // if(averageVoltage >= voltageAlarm.getBtsUpperThreshold())
+        if(averageVoltage >= voltageAlarm.btsReconnectVoltage)
         {
-          if(averageVoltage >= voltageAlarm.getBtsUpperThreshold())
-          {
-            btsOn = true;
-          }      
-        }
+          btsOn = true;
+        }      
       }
 
-      if (otherOn) //if bts should be on
+      if (otherOn) //if other relay should be on
       {
         
-        // if(!additionalCanData.relayState.other || !otherOnSimState) //if feedback still off, re-trigger relay
+        // if(!additionalCanData.relayState.other) //if feedback still off, re-trigger relay
         if(!otherOnSimState) //if feedback still off, re-trigger relay
         {
           Serial1.println("===Other On===");  
           otherOnSimState = true;
           ehubRelay.other = true;
-          // otherON();
+          otherON();
         }
       }
-      else //if bts should be off
+      else //if other relay should be off
       {
-        // if(additionalCanData.relayState.other || otherOnSimState) //if feedback still on, re-trigger relay
+        //  if(additionalCanData.relayState.other) //if feedback still on, re-trigger relay
         if(otherOnSimState) //if feedback still on, re-trigger relay
         {
           Serial1.println("===Other Off===");  
           otherOnSimState = false;
           ehubRelay.other = false;
-          // otherOFF();
+          otherOFF();
         }
-        else
+        // if(averageVoltage >= voltageAlarm.getOtherUpperThreshold())
+        if(averageVoltage >= voltageAlarm.otherReconnectVoltage)
         {
-          if(averageVoltage >= voltageAlarm.getOtherUpperThreshold())
-          {
-            otherOn = true;
-          }
+          otherOn = true;
         }
       }
     }
     else
     {
       Serial1.println("Overriden");
-      if(ehubRelay.vsat)
+      if(ehubRelay.vsat)  // if ehub activate vsat relay
       {
-        // if(!additionalCanData.relayState.vsat || !vsatOnSimState)
+        // if(!additionalCanData.relayState.vsat) //if feedback still off, re-trigger relay
         if(!vsatOnSimState)
         {
           Serial1.println("Vsat On with override");
@@ -554,9 +612,9 @@ static void relayTask(void *arg)
           vsatON();
         }
       }
-      else
+      else  //if ehub deactivate vsat relay
       {
-        // if(additionalCanData.relayState.vsat || vsatOnSimState)
+        // if(additionalCanData.relayState.vsat) //if feedback still on, re-trigger relay
         if(vsatOnSimState)
         {
           Serial1.println("Vsat off with override");
@@ -565,9 +623,9 @@ static void relayTask(void *arg)
         }  
       }
 
-      if (ehubRelay.bts)
+      if (ehubRelay.bts)  // if ehub activate bts relay
       {
-        // if(!additionalCanData.relayState.bts || !btsOnSimState)
+        // if(!additionalCanData.relayState.bts) //if feedback still off, re-trigger relay
         if(!btsOnSimState)
         {
           Serial1.println("Bts on with override");
@@ -575,9 +633,9 @@ static void relayTask(void *arg)
           btsON();
         }
       }
-      else
+      else  //if ehub deactivate bts relay
       {
-        // if(additionalCanData.relayState.bts)
+        // if(additionalCanData.relayState.bts)  //if feedback still on, re-trigger relay
         if(btsOnSimState)
         {
           Serial1.println("Bts off with override");
@@ -586,9 +644,9 @@ static void relayTask(void *arg)
         }
       }
       
-      if (ehubRelay.other)
+      if (ehubRelay.other) // if ehub activate other relay
       {
-        // if(!additionalCanData.relayState.other)
+        // if(!additionalCanData.relayState.other) //if feedback still off, re-trigger relay
         if(!otherOnSimState)
         {
           Serial1.println("Other on with override");
@@ -596,9 +654,9 @@ static void relayTask(void *arg)
           otherON();
         }
       }
-      else
+      else  //if ehub deactivate other relay
       {
-        // if(additionalCanData.relayState.other)
+        // if(additionalCanData.relayState.other)  //if feedback still on, re-trigger relay
         if(otherOnSimState)
         {
           Serial1.println("Other off with override");
@@ -607,6 +665,7 @@ static void relayTask(void *arg)
         }
       }
     }
+    timeToShow++;
     vTaskDelay(200);
   }
 }
@@ -775,18 +834,33 @@ void setup() {
   {
     Serial1.println("Get existing data from EEPROM");
     
-    EEPROM.get(LVD_VSAT_ADDR, temp);
+    EEPROM.get(LVD_LOW_VSAT_ADDR, temp);
     Serial1.println("lvd vsat voltage : " + String(temp));
-    voltageAlarm.vsatAlarmVoltage = temp;
-    EEPROM.get(LVD_BTS_ADDR, temp);
+    voltageAlarm.vsatLowVoltage = temp;
+    EEPROM.get(LVD_LOW_BTS_ADDR, temp);
     Serial1.println("lvd bts voltage : " + String(temp));
-    voltageAlarm.btsAlarmVoltage = temp;
-    EEPROM.get(LVD_OTHER_ADDR, temp);
+    voltageAlarm.btsLowVoltage = temp;
+    EEPROM.get(LVD_LOW_OTHER_ADDR, temp);
     Serial1.println("lvd other voltage : " + String(temp));
-    voltageAlarm.otherAlarmVoltage = temp;
+    voltageAlarm.otherLowVoltage = temp;
     EEPROM.get(LVD_TOLERANCE_ADDR, temp);
     Serial1.println("lvd tolerance : " + String(temp));
     voltageAlarm.tolerance = temp;
+
+    EEPROM.get(LVD_RECONNECT_VSAT_ADDR, temp);
+    Serial1.println("lvd vsat reconnect voltage : " + String(temp));
+    voltageAlarm.vsatReconnectVoltage = temp;
+    EEPROM.get(LVD_RECONNECT_BTS_ADDR, temp);
+    Serial1.println("lvd bts reconnect voltage : " + String(temp));
+    voltageAlarm.btsReconnectVoltage = temp;
+    EEPROM.get(LVD_RECONNECT_OTHER_ADDR, temp);
+    Serial1.println("lvd other reconnect voltage : " + String(temp));
+    voltageAlarm.otherReconnectVoltage = temp;
+
+    EEPROM.get(LVD_TOLERANCE_ADDR, temp);
+    Serial1.println("lvd tolerance : " + String(temp));
+    voltageAlarm.tolerance = temp;
+
     EEPROM.get(NOMINAL_BAT_ADDR, temp);
     Serial1.println("nominal bat voltage : " + String(temp));
     voltageAlarm.nominalBattery = temp;
@@ -799,15 +873,25 @@ void setup() {
   else
   {
     Serial1.println("Write new data to EEPROM");
-    EEPROM.put(LVD_VSAT_ADDR, voltageAlarm.vsatAlarmVoltage);
-    EEPROM.get(LVD_VSAT_ADDR, temp);
+    EEPROM.put(LVD_LOW_VSAT_ADDR, voltageAlarm.vsatLowVoltage);
+    EEPROM.get(LVD_LOW_VSAT_ADDR, temp);
     Serial1.println("lvd vsat voltage : " + String(temp));
-    EEPROM.put(LVD_BTS_ADDR, voltageAlarm.btsAlarmVoltage);
-    EEPROM.get(LVD_BTS_ADDR, temp);
+    EEPROM.put(LVD_LOW_BTS_ADDR, voltageAlarm.btsLowVoltage);
+    EEPROM.get(LVD_LOW_BTS_ADDR, temp);
     Serial1.println("lvd bts voltage : " + String(temp));
-    EEPROM.put(LVD_OTHER_ADDR, voltageAlarm.otherAlarmVoltage);
-    EEPROM.get(LVD_OTHER_ADDR, temp);
-    Serial1.println("lvd other voltage : " + String(temp));
+    EEPROM.put(LVD_LOW_OTHER_ADDR, voltageAlarm.otherLowVoltage);
+    EEPROM.get(LVD_LOW_OTHER_ADDR, temp);
+
+    EEPROM.put(LVD_RECONNECT_VSAT_ADDR, voltageAlarm.vsatReconnectVoltage);
+    EEPROM.get(LVD_RECONNECT_VSAT_ADDR, temp);
+    Serial1.println("lvd vsat reconnect voltage : " + String(temp));
+    EEPROM.put(LVD_RECONNECT_BTS_ADDR, voltageAlarm.btsReconnectVoltage);
+    EEPROM.get(LVD_RECONNECT_BTS_ADDR, temp);
+    Serial1.println("lvd bts reconnect voltage : " + String(temp));
+    EEPROM.put(LVD_RECONNECT_OTHER_ADDR, voltageAlarm.otherReconnectVoltage);
+    EEPROM.get(LVD_RECONNECT_OTHER_ADDR, temp);
+    Serial1.println("lvd other reconnect voltage : " + String(temp));
+
     EEPROM.put(LVD_TOLERANCE_ADDR, voltageAlarm.tolerance);
     EEPROM.get(LVD_TOLERANCE_ADDR, temp);
     Serial1.println("lvd tolerance : " + String(temp));
@@ -860,6 +944,10 @@ void loop() {
   additionalCanData.relayState.vsat = digitalRead(FB1);
   additionalCanData.relayState.bts = digitalRead(FB2);
   additionalCanData.relayState.other = digitalRead(FB3);
+
+  // Serial1.println("Vsat Status : " + String(additionalCanData.relayState.vsat));
+  // Serial1.println("Bts Status : " + String(additionalCanData.relayState.bts));
+  // Serial1.println("Other Status : " + String(additionalCanData.relayState.other));
 
   if(millis() - lastCheckTime > 5000)
   {

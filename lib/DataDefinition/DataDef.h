@@ -61,20 +61,23 @@ struct BatteryData {
 
 struct AlarmParameter
 {
-    int vsatAlarmVoltage;   //in 0.1V
-    int otherAlarmVoltage;  //in 0.1V
-    int btsAlarmVoltage;    //in 0.1V
-    int nominalBattery = 480; // in 0.1V. 480 means 48V
+    uint16_t vsatLowVoltage = 4600;   //in 0.1V
+    uint16_t otherLowVoltage = 4600;  //in 0.1V
+    uint16_t btsLowVoltage = 4700;    //in 0.1V
+    uint16_t vsatReconnectVoltage = 4700;
+    uint16_t otherReconnectVoltage = 4700;
+    uint16_t btsReconnectVoltage = 4800;
+    uint16_t nominalBattery = 4800; // in 0.1V. 480 means 48V
     uint16_t tolerance = 200; // in .01 percent. 200 means 2%
     
     int getVsatUpperThreshold() {
-        return vsatAlarmVoltage + (nominalBattery * tolerance / 10000);
+        return vsatLowVoltage + (nominalBattery * tolerance / 10000);
     }
     int getOtherUpperThreshold() {
-        return otherAlarmVoltage + (nominalBattery * tolerance / 10000);
+        return otherLowVoltage + (nominalBattery * tolerance / 10000);
     }
     int getBtsUpperThreshold() {
-        return btsAlarmVoltage + (nominalBattery * tolerance / 10000);
+        return btsLowVoltage + (nominalBattery * tolerance / 10000);
     }
 
 };
@@ -85,9 +88,9 @@ struct AlarmParameter
 struct AdditionalCANData {
     union {
         struct {
-            uint8_t vsat: 1;        /*This is the raw bit for vsat relay status.*/
-            uint8_t bts: 1;         /*This is the raw bit for bts relay0 status.*/
             uint8_t other: 1;       /*This is the raw bit for other relay status.*/
+            uint8_t bts: 1;         /*This is the raw bit for bts relay0 status.*/
+            uint8_t vsat: 1;        /*This is the raw bit for vsat relay status.*/            
             uint8_t reserved: 5;    /*Reserved, not used*/    
         };
         uint8_t val;

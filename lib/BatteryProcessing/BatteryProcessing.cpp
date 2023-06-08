@@ -11,7 +11,7 @@ BatteryProcessing::BatteryProcessing()
  * @param   startIndex  start index of the array
  * @param   length  number of bytes that need to be concatenated
  * @param   maxValue the maxValue to calibrate the result
- * @return  value of pack voltage in 0.1V. e.g 512 means 51.2V
+ * @return  value of pack voltage in 0.01V. e.g 512 means 51.20V
 */
 int BatteryProcessing::getPackVoltage(uint8_t data[], int startIndex, size_t length, int maxValue)
 {
@@ -23,7 +23,7 @@ int BatteryProcessing::getPackVoltage(uint8_t data[], int startIndex, size_t len
         val = (data[startIndex + i] << (i*8));
         raw += val;
     }
-    result = abs(maxValue - raw) * 2;
+    result = abs(maxValue - raw);
     return result;
 }
 
