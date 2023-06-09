@@ -17,12 +17,21 @@ int BatteryProcessing::getPackVoltage(uint8_t data[], int startIndex, size_t len
 {
     int result = 0;
     int raw = 0;
-    for (size_t i = 0; i < length; i++)
+
+    if ((startIndex + length) > 8)
     {
-        int val = 0;
-        val = (data[startIndex + i] << (i*8));
-        raw += val;
+        return 0;
     }
+
+    uint8_t lowByte = data[startIndex];
+    uint8_t highByte = data[startIndex+1];
+
+    if (lowByte > 0x64) // if the lowbyte is higher than 100 (0x64), decrease the highbyte by 1
+    {
+        highByte--;
+    }
+
+    raw = (highByte << 8) + lowByte; 
     result = abs(maxValue - raw);
     return result;
 }
@@ -39,12 +48,21 @@ int BatteryProcessing::getPackCurrent(uint8_t data[], int startIndex, size_t len
 {
     int result = 0;
     int raw = 0;
-    for (size_t i = 0; i < length; i++)
+
+    if ((startIndex + length) > 8)
     {
-        int val = 0;
-        val = (data[startIndex + i] << (i*8));
-        raw += val;
+        return 0;
     }
+
+    uint8_t lowByte = data[startIndex];
+    uint8_t highByte = data[startIndex+1];
+
+    if (lowByte > 0x64) // if the lowbyte is higher than 100 (0x64), decrease the highbyte by 1
+    {
+        highByte--;
+    }
+
+    raw = (highByte << 8) + lowByte; 
     result = abs(maxValue - raw);
     return result;
 }
@@ -61,12 +79,21 @@ int BatteryProcessing::getPackSoc(uint8_t data[], int startIndex, size_t length,
 {
     int result = 0;
     int raw = 0;
-    for (size_t i = 0; i < length; i++)
+
+    if ((startIndex + length) > 8)
     {
-        int val = 0;
-        val = (data[startIndex + i] << (i*8));
-        raw += val;
+        return 0;
     }
+
+    uint8_t lowByte = data[startIndex];
+    uint8_t highByte = data[startIndex+1];
+
+    if (lowByte > 0x64) // if the lowbyte is higher than 100 (0x64), decrease the highbyte by 1
+    {
+        highByte--;
+    }
+
+    raw = (highByte << 8) + lowByte; 
     result = abs(maxValue - raw);
     return result;
 }

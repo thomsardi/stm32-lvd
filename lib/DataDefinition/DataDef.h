@@ -141,7 +141,8 @@ enum BaseAddress {
     VCELL_5_8_ADDR = 0x761c864,
     VCELL_9_12_ADDR = 0x760c864,
     VCELL_13_15_ADDR = 0x75fc864,
-    MAX_MIN_PARAM_ADDR = 0x75ec864
+    MAX_MIN_PARAM_ADDR = 0x75ec864,
+    WAKE_ADDR = 0x12640066
 };
 
 #endif

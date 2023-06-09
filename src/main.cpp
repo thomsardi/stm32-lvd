@@ -332,6 +332,29 @@ void canHandler(CAN_msg_t msg)
     default:
       break;
     }
+    // switch (msg.data[0])
+    // {
+    // case 1:
+    //   ehubRelay.vsat = 1;
+    //   break;
+    // case 2:
+    //   ehubRelay.vsat = 0;
+    //   break;
+    // case 3:
+    //   ehubRelay.bts = 1;
+    //   break;
+    // case 4:
+    //   ehubRelay.bts = 0;
+    //   break;
+    // case 5:
+    //   ehubRelay.other = 1;
+    //   break;
+    // case 6:
+    //   ehubRelay.other = 0;
+    //   break;
+    // default:
+    //   break;
+    // }
     CAN_msg_t response;
     response.id = (frameId & 0x0000FFFF) + ((frameId & 0x00FF0000) << 8) + ((frameId & 0xFF000000) >> 8);
     Serial1.print("Response Id : ");
@@ -440,19 +463,28 @@ static void relayTask(void *arg)
   uint8_t timeToShow = 0;
   uint8_t receivedData;
   int32_t totalVoltage = 0;
+  int32_t totalCurrent = 0;
+  int32_t totalSoc = 0;
   uint8_t detectedBattery = 0;
   int32_t averageVoltage = 0;
+  int32_t averageCurrent = 0;
+  int32_t averageSoc = 0;
   while(1)
   {
     // Serial1.println("Relay Task");
     detectedBattery = 0;
     averageVoltage = 0;
+    averageCurrent = 0;
     totalVoltage = 0;
+    totalCurrent = 0;
+    totalSoc = 0;
     for (size_t i = 0; i < batterySize; i++)
     {
       if (batteryData[i].isUpdated && batteryData[i].mosfetStatus.dmos) // if the value constanly updated and dmos is connected to load, count the battery
       {
         totalVoltage += batteryData[i].packVoltage;
+        totalCurrent += batteryData[i].packCurrent;
+        totalSoc += batteryData[i].packSoc;
         detectedBattery++;
       }
       else
@@ -462,10 +494,14 @@ static void relayTask(void *arg)
     }
     
     averageVoltage = totalVoltage / detectedBattery;
+    averageCurrent = totalCurrent / detectedBattery;
+    averageSoc = totalSoc / detectedBattery;
     if(timeToShow > 5)
     {
       Serial1.println("Detected Battery : " + String(detectedBattery));
       Serial1.println("Average Pack Voltage : " + String(averageVoltage));
+      Serial1.println("Average Pack Current : " + String(averageCurrent));
+      Serial1.println("Average Pack Soc : " + String(averageSoc));
       Serial1.println("Bts Voltage Alarm : " + String(voltageAlarm.btsLowVoltage));
       Serial1.println("Bts Upper Threshold : " + String(voltageAlarm.btsReconnectVoltage));
       Serial1.println("Vsat Voltage Alarm : " + String(voltageAlarm.vsatLowVoltage));
@@ -675,6 +711,9 @@ static void canSenderTask(void *arg)
 {
   bool isOff = true;
   CAN_msg_t msg;
+  int idInc = 1;
+  int totalId = sizeof(batteryData) / sizeof(batteryData[0]);
+  // Serial.println("Total size = " + String(totalId));
   while(1)
   {
     if (xQueueReceive(canSenderTaskQueue, &msg, 100) == pdTRUE) 
@@ -685,22 +724,36 @@ static void canSenderTask(void *arg)
     else
     {
       // msg to keep the battery awake
+      if(idInc > totalId)
+      {
+        idInc = 1;
+      }
       CAN_msg_t msg;
-      msg.id = 0x12345678;
+      msg.id = WAKE_ADDR + (idInc << 8);
       msg.format = CAN_FORMAT::EXTENDED_FORMAT;
       msg.type = CAN_FRAME::DATA_FRAME;
       msg.len = 8;
-      msg.data[0] = 1;
-      msg.data[1] = 2; // for relay contact on or off
-      msg.data[2] = 3;
-      msg.data[3] = 4;
-      msg.data[4] = 5;
-      msg.data[5] = 6;
-      msg.data[6] = 7;
-      msg.data[7] = 8;
-      // can.send(&msg);
+      msg.data[0] = 0x33;
+      msg.data[1] = 0x63;
+      msg.data[2] = 0x60;
+      msg.data[3] = 0x64;
+      msg.data[4] = 0x64;
+      msg.data[5] = 0x64;
+      msg.data[6] = 0x53;
+      msg.data[7] = 0x64;
+      can.send(&msg);
       // Serial1.println("Send CAN to wake up battery");
-
+      // Serial1.print("Frame id : ");
+      // Serial1.println(msg.id, HEX);
+      // Serial1.print("Data : ");
+      // for (size_t i = 0; i < 8; i++)
+      // {
+      //   Serial1.print(msg.data[i], HEX);
+      //   Serial1.print(" ");
+      // }
+      // Serial.println();
+      
+      idInc++;
     }
     // vTaskDelay(1000);
   }
@@ -967,9 +1020,9 @@ void loop() {
   if (millis() - lastTime > 1000)
   {
     ina3221Task();
-    // Serial1.println("Vsat Relay State : " + String(additionalCanData.relayState.vsat));
-    // Serial1.println("Bts Relay State : " + String(additionalCanData.relayState.bts));
-    // Serial1.println("Other Relay State : " + String(additionalCanData.relayState.other));
+    Serial1.println("Vsat Relay State : " + String(additionalCanData.relayState.vsat));
+    Serial1.println("Bts Relay State : " + String(additionalCanData.relayState.bts));
+    Serial1.println("Other Relay State : " + String(additionalCanData.relayState.other));
 
     lastTime = millis();
 
