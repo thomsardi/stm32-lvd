@@ -6,16 +6,26 @@
 #include <BatteryProcessing.h>
 #include <EEPROM.h>
 
-#define ON1 PA5
-#define ON2 PA6
-#define ON3 PA7
-#define OFF1 PB0
-#define OFF2 PB1
-#define OFF3 PB10
+#define ON1 PA5 //  Vsat
+#define ON2 PA6 //  BTS
+#define ON3 PA7 //  Other
+#define OFF1 PB0  //  Vsat
+#define OFF2 PB1  //  BTS
+#define OFF3 PB10 //  Other
 
-#define FB1 PB14
-#define FB2 PB13
-#define FB3 PB12
+/**
+ * Pin remap
+*/
+#define VSAT_ON PA7
+#define VSAT_OFF  PB10
+#define BTS_ON  PA6
+#define BTS_OFF PB1
+#define OTHER_ON  PA5
+#define OTHER_OFF PB0
+
+#define FB1 PB14  //  Vsat
+#define FB2 PB13  //  BTS
+#define FB3 PB12  //  Other
 
 #define LVD_LOW_VSAT_ADDR 0
 #define LVD_LOW_OTHER_ADDR 4
@@ -412,44 +422,57 @@ int myFunction(int, int);
 
 void vsatON()
 {
-  digitalWrite(ON1, HIGH);
-  vTaskDelay(20);
-  digitalWrite(ON1, LOW);
+  // digitalWrite(ON1, HIGH);
+  digitalWrite(VSAT_ON, HIGH);
+  vTaskDelay(100);
+  digitalWrite(VSAT_ON, LOW);
+  // digitalWrite(ON1, LOW);
+  
 }
 
 void vsatOFF()
 {
-  digitalWrite(OFF1, HIGH);
-  vTaskDelay(20);
-  digitalWrite(OFF1, LOW);
+  // digitalWrite(OFF1, HIGH);
+  digitalWrite(VSAT_OFF, HIGH);
+  vTaskDelay(100);
+  digitalWrite(VSAT_OFF, LOW);
+  // digitalWrite(OFF1, LOW);
 }
 
 void btsON()
 {
-  digitalWrite(ON2, HIGH);
-  vTaskDelay(20);
-  digitalWrite(ON2, LOW);
+  // digitalWrite(ON2, HIGH);
+  digitalWrite(BTS_ON, HIGH);
+  vTaskDelay(100);
+  digitalWrite(BTS_ON, LOW);
+  // digitalWrite(ON2, LOW);
 }
 
 void btsOFF()
 {
-  digitalWrite(OFF2, HIGH);
-  vTaskDelay(20);
-  digitalWrite(OFF2, LOW);
+  // digitalWrite(OFF2, HIGH);
+  digitalWrite(BTS_OFF, HIGH);
+  vTaskDelay(100);
+  digitalWrite(BTS_OFF, LOW);
+  // digitalWrite(OFF2, LOW);
 }
 
 void otherON()
 {
-  digitalWrite(ON3, HIGH);
-  vTaskDelay(20);
-  digitalWrite(ON3, LOW);
+  // digitalWrite(ON3, HIGH);
+  digitalWrite(OTHER_ON, HIGH);
+  vTaskDelay(100);
+  digitalWrite(OTHER_ON, LOW);
+  // digitalWrite(ON3, LOW);
 }
 
 void otherOFF()
 {
-  digitalWrite(OFF3, HIGH);
-  vTaskDelay(20);
-  digitalWrite(OFF3, LOW);
+  // digitalWrite(OFF3, HIGH);
+  digitalWrite(OTHER_OFF, HIGH);
+  vTaskDelay(100);
+  digitalWrite(OTHER_OFF, LOW);
+  // digitalWrite(OFF3, LOW);
 }
 
 static void relayTask(void *arg)
@@ -551,8 +574,8 @@ static void relayTask(void *arg)
       */
       if (vsatOn) //if vsat relay should be on
       {
-        // if(!additionalCanData.relayState.vsat) //if feedback still off, re-trigger relay
-        if(!vsatOnSimState) //if feedback still off, re-trigger relay
+        if(!additionalCanData.relayState.vsat) //if feedback still off, re-trigger relay
+        // if(!vsatOnSimState) //if feedback still off, re-trigger relay
         {
           Serial1.println("===Vsat On===");
           vsatOnSimState = true;
@@ -562,16 +585,16 @@ static void relayTask(void *arg)
       }
       else //if vsat relay should be off
       {
-        // if(additionalCanData.relayState.vsat) //if feedback still on, re-trigger relay
-        if(vsatOnSimState) //if feedback still on, re-trigger relay
+        if(additionalCanData.relayState.vsat) //if feedback still on, re-trigger relay
+        // if(vsatOnSimState) //if feedback still on, re-trigger relay
         {
           Serial1.println("===Vsat Off===");
           vsatOnSimState = false;
           ehubRelay.vsat = false;
           vsatOFF();
         }
-        // if(averageVoltage >= voltageAlarm.getVsatUpperThreshold())
-        if(averageVoltage >= voltageAlarm.vsatReconnectVoltage)
+        if(averageVoltage >= voltageAlarm.getVsatUpperThreshold())
+        // if(averageVoltage >= voltageAlarm.vsatReconnectVoltage)
         {
           vsatOn = true;
         }      
@@ -580,8 +603,8 @@ static void relayTask(void *arg)
       
       if (btsOn) //if bts relay should be on
       {
-        // if(!additionalCanData.relayState.bts) //if feedback still off, re-trigger relay
-        if(!btsOnSimState) //if feedback still off, re-trigger relay
+        if(!additionalCanData.relayState.bts) //if feedback still off, re-trigger relay
+        // if(!btsOnSimState) //if feedback still off, re-trigger relay
         {
           Serial1.println("===Bts On===");
           btsOnSimState = true;
@@ -591,8 +614,8 @@ static void relayTask(void *arg)
       }
       else //if bts relay should be off
       {
-        // if(additionalCanData.relayState.bts) //if feedback still on, re-trigger relay
-        if(btsOnSimState) //if feedback still on, re-trigger relay
+        if(additionalCanData.relayState.bts) //if feedback still on, re-trigger relay
+        // if(btsOnSimState) //if feedback still on, re-trigger relay
         {
           Serial1.println("===Bts Off===");
           btsOnSimState = false;
@@ -609,8 +632,8 @@ static void relayTask(void *arg)
       if (otherOn) //if other relay should be on
       {
         
-        // if(!additionalCanData.relayState.other) //if feedback still off, re-trigger relay
-        if(!otherOnSimState) //if feedback still off, re-trigger relay
+        if(!additionalCanData.relayState.other) //if feedback still off, re-trigger relay
+        // if(!otherOnSimState) //if feedback still off, re-trigger relay
         {
           Serial1.println("===Other On===");  
           otherOnSimState = true;
@@ -620,16 +643,16 @@ static void relayTask(void *arg)
       }
       else //if other relay should be off
       {
-        //  if(additionalCanData.relayState.other) //if feedback still on, re-trigger relay
-        if(otherOnSimState) //if feedback still on, re-trigger relay
+         if(additionalCanData.relayState.other) //if feedback still on, re-trigger relay
+        // if(otherOnSimState) //if feedback still on, re-trigger relay
         {
           Serial1.println("===Other Off===");  
           otherOnSimState = false;
           ehubRelay.other = false;
           otherOFF();
         }
-        // if(averageVoltage >= voltageAlarm.getOtherUpperThreshold())
-        if(averageVoltage >= voltageAlarm.otherReconnectVoltage)
+        if(averageVoltage >= voltageAlarm.getOtherUpperThreshold())
+        // if(averageVoltage >= voltageAlarm.otherReconnectVoltage)
         {
           otherOn = true;
         }
@@ -640,63 +663,69 @@ static void relayTask(void *arg)
       Serial1.println("Overriden");
       if(ehubRelay.vsat)  // if ehub activate vsat relay
       {
-        // if(!additionalCanData.relayState.vsat) //if feedback still off, re-trigger relay
-        if(!vsatOnSimState)
+        if(!additionalCanData.relayState.vsat) //if feedback still off, re-trigger relay
+        // if(!vsatOnSimState)
         {
           Serial1.println("Vsat On with override");
           vsatOnSimState = true;
+          ehubRelay.vsat = true;
           vsatON();
         }
       }
       else  //if ehub deactivate vsat relay
       {
-        // if(additionalCanData.relayState.vsat) //if feedback still on, re-trigger relay
-        if(vsatOnSimState)
+        if(additionalCanData.relayState.vsat) //if feedback still on, re-trigger relay
+        // if(vsatOnSimState)
         {
           Serial1.println("Vsat off with override");
           vsatOnSimState = false;
+          ehubRelay.vsat = false;
           vsatOFF();
         }  
       }
 
       if (ehubRelay.bts)  // if ehub activate bts relay
       {
-        // if(!additionalCanData.relayState.bts) //if feedback still off, re-trigger relay
-        if(!btsOnSimState)
+        if(!additionalCanData.relayState.bts) //if feedback still off, re-trigger relay
+        // if(!btsOnSimState)
         {
           Serial1.println("Bts on with override");
           btsOnSimState = true;
+          ehubRelay.bts = true;
           btsON();
         }
       }
       else  //if ehub deactivate bts relay
       {
-        // if(additionalCanData.relayState.bts)  //if feedback still on, re-trigger relay
-        if(btsOnSimState)
+        if(additionalCanData.relayState.bts)  //if feedback still on, re-trigger relay
+        // if(btsOnSimState)
         {
           Serial1.println("Bts off with override");
           btsOnSimState = false;
+          ehubRelay.bts = false;
           btsOFF();
         }
       }
       
       if (ehubRelay.other) // if ehub activate other relay
       {
-        // if(!additionalCanData.relayState.other) //if feedback still off, re-trigger relay
-        if(!otherOnSimState)
+        if(!additionalCanData.relayState.other) //if feedback still off, re-trigger relay
+        // if(!otherOnSimState)
         {
           Serial1.println("Other on with override");
           otherOnSimState = true;
+          ehubRelay.other = true;
           otherON();
         }
       }
       else  //if ehub deactivate other relay
       {
-        // if(additionalCanData.relayState.other)  //if feedback still on, re-trigger relay
-        if(otherOnSimState)
+        if(additionalCanData.relayState.other)  //if feedback still on, re-trigger relay
+        // if(otherOnSimState)
         {
           Serial1.println("Other off with override");
           otherOnSimState = false;
+          ehubRelay.other = false;
           otherOFF();
         }
       }
@@ -841,6 +870,9 @@ void setup() {
   pinMode(FB2, INPUT);
   pinMode(FB3, INPUT);
   
+  // vsatON();
+  // btsON();
+  // otherON();
 
   // batteryData[0].mosfetStatus.cmos = 1;
   // batteryData[0].mosfetStatus.dmos = 0;
@@ -873,6 +905,7 @@ void setup() {
   ina3221b.reset();
   ina3221b.setShuntRes(5, 5, 5);
   Serial1.begin(115200);
+  Serial1.println("SETUP");
   can.onReceive(canHandler);
   if(!can.init(CAN_250KBPS, 0))
   {
