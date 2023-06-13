@@ -1,3 +1,6 @@
+#ifndef CAN_DEF_H
+#define CAN_DEF_H
+
 #include <Arduino.h>
 
 #define STM32_CAN_TIR_TXRQ (1U << 0U) // Bit 0: Transmit Mailbox Request
@@ -104,3 +107,4 @@ struct FilterConfig
 };
 
 CAN_bit_timing_config_t can_configs[6] = {{2, 13, 45}, {2, 15, 20}, {2, 13, 18}, {2, 13, 9}, {2, 15, 4}, {2, 15, 2}};
+#endif

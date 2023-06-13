@@ -2,6 +2,7 @@
 #define DATADEF_H
 
 #include <Arduino.h>
+#include <Vector.h>
 
 struct BatteryData {
     
@@ -38,25 +39,91 @@ struct BatteryData {
     MosfetStatus mosfetStatus;
     UpdatedCounter cnt;
     Temperature temperature;
+    uint8_t id;
     int packVoltage;
     int packCurrent;
     int packSoc;
     bool isUpdated;
 
-    void updateTemperatureCounter() {
-        cnt.previousTemperatureUpdatedCounter = cnt.temperatureUpdatedCounter;
-        cnt.temperatureUpdatedCounter++;
+    int16_t getPackCounter()
+    {
+        return cnt.packUpdatedCounter;
+    }
+    
+    int16_t getLastPackCounter()
+    {
+        return cnt.previousPackUpdatedCounter;
     }
 
-    void updateMosfetCounter() {
+    void updatePackPreviousCounter()
+    {
+        cnt.previousPackUpdatedCounter = cnt.packUpdatedCounter;
+    }
+
+    int16_t getMosfetCounter()
+    {
+        return cnt.mosfetUpdatedCounter;
+    }
+    
+    int16_t getLastMosfetCounter()
+    {
+        return cnt.previousMosfetUpdatedCounter;
+    }
+
+    void updateMosfetPreviousCounter()
+    {
         cnt.previousMosfetUpdatedCounter = cnt.mosfetUpdatedCounter;
+    }
+
+    void incPackCounter() {
+        cnt.packUpdatedCounter++;
+    }
+
+    void incMosfetCounter() {
         cnt.mosfetUpdatedCounter++;
     }
 
-    void updatePackCounter() {
-        cnt.previousPackUpdatedCounter = cnt.packUpdatedCounter;
-        cnt.packUpdatedCounter++;
-    }
+
+};
+
+struct HalfPackData {
+    uint8_t id;
+    bool isUpdated;
+    int packVoltage;
+    int packCurrent;
+    int packSoc;
+    uint16_t previousPackUpdatedCounter;
+    uint16_t packUpdatedCounter;
+};
+
+struct HalfMosfetData {
+    union MosfetStatus 
+    {
+        struct
+        {
+            uint8_t cmos : 1;
+            uint8_t dmos : 1;
+            uint8_t reserved : 6;
+        };
+        uint8_t val;
+    };
+
+    struct Temperature
+    {
+        int top;
+        int mid;
+        int bot;
+        int cmosTemp;
+        int dmosTemp;  
+    };
+
+    uint8_t id;
+    bool isUpdated;
+    MosfetStatus mosfetStatus;
+    Temperature temperature;
+    uint16_t previousMosfetCounter;
+    uint16_t mosfetUpdatedCounter;
+
 };
 
 struct AlarmParameter

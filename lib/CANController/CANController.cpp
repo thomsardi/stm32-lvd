@@ -490,7 +490,7 @@ void CANController::loop()
     {
         // Serial1.println("Incoming Data");
         receive(&rxMsg);
-        if(_handler)
+        if(_handler != nullptr)
         {
             _handler(rxMsg);
         }

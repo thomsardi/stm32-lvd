@@ -13,18 +13,18 @@ BatteryProcessing::BatteryProcessing()
  * @param   maxValue the maxValue to calibrate the result
  * @return  value of pack voltage in 0.01V. e.g 512 means 51.20V
 */
-int BatteryProcessing::getPackVoltage(uint8_t data[], int startIndex, size_t length, int maxValue)
+int BatteryProcessing::getPackVoltage(CAN_msg_t msg, int startIndex, size_t length, int maxValue)
 {
     int result = 0;
     int raw = 0;
 
-    if ((startIndex + length) > 8)
+    if ((startIndex + length) > msg.len)
     {
         return 0;
     }
 
-    uint8_t lowByte = data[startIndex];
-    uint8_t highByte = data[startIndex+1];
+    uint8_t lowByte = msg.data[startIndex];
+    uint8_t highByte = msg.data[startIndex+1];
 
     if (lowByte > 0x64) // if the lowbyte is higher than 100 (0x64), decrease the highbyte by 1
     {
@@ -44,18 +44,18 @@ int BatteryProcessing::getPackVoltage(uint8_t data[], int startIndex, size_t len
  * @param   maxValue the maxValue to calibrate the result
  * @return  current value in 0.1 A, e.g value 98 means 9.8 A
 */
-int BatteryProcessing::getPackCurrent(uint8_t data[], int startIndex, size_t length, int maxValue)
+int BatteryProcessing::getPackCurrent(CAN_msg_t msg, int startIndex, size_t length, int maxValue)
 {
     int result = 0;
     int raw = 0;
 
-    if ((startIndex + length) > 8)
+    if ((startIndex + length) > msg.len)
     {
         return 0;
     }
 
-    uint8_t lowByte = data[startIndex];
-    uint8_t highByte = data[startIndex+1];
+    uint8_t lowByte = msg.data[startIndex];
+    uint8_t highByte = msg.data[startIndex+1];
 
     if (lowByte > 0x64) // if the lowbyte is higher than 100 (0x64), decrease the highbyte by 1
     {
@@ -75,18 +75,18 @@ int BatteryProcessing::getPackCurrent(uint8_t data[], int startIndex, size_t len
  * @param   maxValue the maxValue to calibrate the result
  * @return  SoC value in 0.1 percent, e.g value 99 means it is 9.9%
 */
-int BatteryProcessing::getPackSoc(uint8_t data[], int startIndex, size_t length, int maxValue)
+int BatteryProcessing::getPackSoc(CAN_msg_t msg, int startIndex, size_t length, int maxValue)
 {
     int result = 0;
     int raw = 0;
 
-    if ((startIndex + length) > 8)
+    if ((startIndex + length) > msg.len)
     {
         return 0;
     }
 
-    uint8_t lowByte = data[startIndex];
-    uint8_t highByte = data[startIndex+1];
+    uint8_t lowByte = msg.data[startIndex];
+    uint8_t highByte = msg.data[startIndex+1];
 
     if (lowByte > 0x64) // if the lowbyte is higher than 100 (0x64), decrease the highbyte by 1
     {
@@ -106,14 +106,20 @@ int BatteryProcessing::getPackSoc(uint8_t data[], int startIndex, size_t length,
  * @param   maxValue the maxValue to calibrate the result
  * @return  the value in celcius
 */
-int BatteryProcessing::getTemperature(uint8_t data[], int startIndex, size_t length, int maxValue)
+int BatteryProcessing::getTemperature(CAN_msg_t msg, int startIndex, size_t length, int maxValue)
 {
     int result = 0;
     int raw = 0;
+
+    if((startIndex + length) > msg.len)
+    {
+        return 0;
+    }
+
     for (size_t i = 0; i < length; i++)
     {
         int val = 0;
-        val = (data[startIndex + i] << (i*8));
+        val = (msg.data[startIndex + i] << (i*8));
         raw += val;
     }
     result = abs(maxValue - raw);
@@ -145,6 +151,30 @@ void BatteryProcessing::updateMosfetStatus(uint8_t data, BatteryData &batteryDat
     case 0x65:
         batteryData.mosfetStatus.cmos = 0;
         batteryData.mosfetStatus.dmos = 0;
+        break;
+    }
+}
+
+void BatteryProcessing::updateMosfetStatus(uint8_t data, HalfMosfetData &halfMosfetData)
+{
+    switch (data)
+    {
+    case 0x53:
+        halfMosfetData.mosfetStatus.cmos = 1;
+        halfMosfetData.mosfetStatus.dmos = 0;
+        break;
+    case 0x42:
+        halfMosfetData.mosfetStatus.cmos = 0;
+        halfMosfetData.mosfetStatus.dmos = 1;
+        break;
+    case 0x31:
+        // Serial1.println("Data 0x31");
+        halfMosfetData.mosfetStatus.cmos = 1;
+        halfMosfetData.mosfetStatus.dmos = 1;
+        break;
+    case 0x65:
+        halfMosfetData.mosfetStatus.cmos = 0;
+        halfMosfetData.mosfetStatus.dmos = 0;
         break;
     }
 }

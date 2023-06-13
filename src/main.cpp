@@ -5,6 +5,7 @@
 #include <DataDef.h>
 #include <BatteryProcessing.h>
 #include <EEPROM.h>
+#include <Pack.h>
 
 #define ON1 PA5 //  Vsat
 #define ON2 PA6 //  BTS
@@ -62,48 +63,41 @@ bool isOverriden;
 unsigned long lastTime = 0;
 unsigned long lastCheckTime = 0;
 
-BatteryData batteryData[16];
+BatteryData batteryData[24];
 size_t batterySize = sizeof(batteryData) / sizeof(batteryData[0]);
+
+BatteryData dummyData[24];
+Pack packData(dummyData, 24, 0);
 
 EhubRelayWrite ehubRelay;
 KeepAliveCounter keepAliveCounter;
+bool isDataReady = false;
 // put function declarations here:
+
+void testCan(CAN_msg_t msg)
+{
+  Serial1.println("can handler block");
+}
 
 void canHandler(CAN_msg_t msg)
 {
-  uint8_t data;
-  bool state = true;
-  count++;
-  count2++;
-  if (count > 9)
-  {
-    count = 0;
-    // xQueueSend(relayTaskQueue, &data, 0);
-    // xSemaphoreTake(myLock, 10);
-  }
-  if (count2 > 4)
-  {
-    count2 = 0;
-    // xQueueSend(canSenderTaskQueue, &state, 0);
-    // xSemaphoreTake(myLock, 10);
-  }
-  // Serial1.println("Count : " + String(count));
-  // Serial1.print("ID : ");
-  // Serial1.println(msg.id, HEX);
-
-  // BatteryData *p;
   uint32_t frameId = msg.id;
+  HalfPackData halfPackData;
+  HalfMosfetData halfMosfetData;
   int length = msg.len;
   int index = 0;
   int baseAddr = 0;
   // Serial1.print("Frame Addr : ");
   // Serial1.println(frameId, HEX);
+  // return;
   // Serial1.println((frameId & 0xFFFFFFC0), HEX);
   switch (frameId & 0xFFFFFFC0)
   {
   case PACK_DATA:
     baseAddr = static_cast<int>(PACK_ADDR);
     index = baseAddr - frameId;
+    // Serial1.println("Index : " + String(index));
+    // return;
     // index = abs(index);
     // Serial1.println("index : " + String(index));
     // for (size_t i = 0; i < length; i++)
@@ -111,29 +105,48 @@ void canHandler(CAN_msg_t msg)
     //   Serial1.print(msg.data[i], HEX);
     //   Serial1.print(" ");
     // }
-    batteryData[index - 1].isUpdated = 1;
-    batteryData[index - 1].packVoltage = batProc.getPackVoltage(msg.data, 2, 2);
-    batteryData[index - 1].packCurrent = batProc.getPackCurrent(msg.data, 4, 2);
-    batteryData[index - 1].packSoc = batProc.getPackSoc(msg.data, 6, 2);
-    batteryData[index - 1].updatePackCounter();
+    halfPackData.id = index;
+    halfPackData.isUpdated = 1;
+    halfPackData.packVoltage = batProc.getPackVoltage(msg, 2, 2);
+    halfPackData.packCurrent = batProc.getPackCurrent(msg, 4, 2);
+    halfPackData.packSoc = batProc.getPackSoc(msg, 6, 2);
+    packData.insert(halfPackData);
+    isDataReady = true;
+    // batteryData[index - 1].id = index;
+    // batteryData[index - 1].isUpdated = 1;
+    // batteryData[index - 1].packVoltage = batProc.getPackVoltage(msg, 2, 2);
+    // batteryData[index - 1].packCurrent = batProc.getPackCurrent(msg, 4, 2);
+    // batteryData[index - 1].packSoc = batProc.getPackSoc(msg, 6, 2);
+    // batteryData[index - 1].incPackCounter();
     // Serial1.println("Id : " + String(index));
     // Serial1.println("Pack Voltage : " + String(batteryData[index - 1].packVoltage));
     // Serial1.println("Pack Current : " + String(batteryData[index - 1].packCurrent));
     // Serial1.println("Pack Soc : " + String(batteryData[index - 1].packSoc));
+    // return;
     break;
   case MOSF_TEMP :
     baseAddr = static_cast<int>(MOSF_TEMP_ADDR);
     index = baseAddr - frameId;
-    // index = abs(index);
-    batteryData[index - 1].isUpdated = 1;
-    batProc.updateMosfetStatus(msg.data[0], batteryData[index-1]);
-    batteryData[index - 1].updateMosfetCounter();
-    batteryData[index - 1].temperature.top = batProc.getTemperature(msg.data,3, 1);
-    batteryData[index - 1].temperature.mid = batProc.getTemperature(msg.data,4, 1);
-    batteryData[index - 1].temperature.bot = batProc.getTemperature(msg.data,5, 1);
-    batteryData[index - 1].temperature.cmosTemp = batProc.getTemperature(msg.data,6, 1);
-    batteryData[index - 1].temperature.dmosTemp = batProc.getTemperature(msg.data,7, 1);
-    batteryData[index - 1].updateTemperatureCounter();
+
+    halfMosfetData.id = index;
+    halfMosfetData.isUpdated = 1;
+    batProc.updateMosfetStatus(msg.data[0], halfMosfetData);
+    halfMosfetData.temperature.top = batProc.getTemperature(msg,3, 1);
+    halfMosfetData.temperature.mid = batProc.getTemperature(msg,4, 1);
+    halfMosfetData.temperature.bot = batProc.getTemperature(msg,5, 1);
+    halfMosfetData.temperature.cmosTemp = batProc.getTemperature(msg,6, 1);
+    halfMosfetData.temperature.dmosTemp = batProc.getTemperature(msg,7, 1);
+    packData.insert(halfMosfetData);
+
+    // batteryData[index - 1].id = index;
+    // batteryData[index - 1].isUpdated = 1;    
+    // batProc.updateMosfetStatus(msg.data[0], batteryData[index-1]);
+    // batteryData[index - 1].temperature.top = batProc.getTemperature(msg,3, 1);
+    // batteryData[index - 1].temperature.mid = batProc.getTemperature(msg,4, 1);
+    // batteryData[index - 1].temperature.bot = batProc.getTemperature(msg,5, 1);
+    // batteryData[index - 1].temperature.cmosTemp = batProc.getTemperature(msg,6, 1);
+    // batteryData[index - 1].temperature.dmosTemp = batProc.getTemperature(msg,7, 1);
+    // batteryData[index - 1].incMosfetCounter();
     // Serial1.println("Id : " + String(index - 1));
     // Serial1.println("Mosfet Status : " + String(batteryData[index - 1].mosfetStatus.val));
     // Serial1.println("Temperature Top : " + String(batteryData[index - 1].temperature.top));
@@ -141,15 +154,17 @@ void canHandler(CAN_msg_t msg)
     // Serial1.println("Temperature Bot : " + String(batteryData[index - 1].temperature.bot));
     // Serial1.println("Temperature Cmos : " + String(batteryData[index - 1].temperature.cmosTemp));
     // Serial1.println("Temperature Dmos : " + String(batteryData[index - 1].temperature.dmosTemp));
+    // return;
     break;
 
   default:
     break;
   }
+  // return;
 
   if (frameId == 0x1D42C8E8) //ehub write lvd low config
   {
-    Serial1.println("Write lvd low config");
+    // Serial1.println("Write lvd low config");
     voltageAlarm.vsatLowVoltage = (msg.data[1] << 8) + msg.data[0];
     uint16_t temp;
     EEPROM.get(LVD_LOW_VSAT_ADDR, temp);
@@ -298,8 +313,8 @@ void canHandler(CAN_msg_t msg)
 
   if(frameId == 0x1D41C8E8) //ehub keep alive & override
   {
-    Serial1.println("Keep alive");
-    uint16_t id = (msg.data[1] << 8) + msg.data[0];
+    // Serial1.println("Keep alive");
+    // uint16_t id = (msg.data[1] << 8) + msg.data[0];
     // keepAliveCounter.cnt = (frameId & 0xFFFF0000) + (msg.data[3] << 24) + (msg.data[2] << 16) + (msg.data[1] << 8) + msg.data[0];
     // if (id == uniqueId)
     // {
@@ -377,45 +392,7 @@ void canHandler(CAN_msg_t msg)
       response.data[i] = msg.data[i];
     }
     xQueueSend(canSenderTaskQueue, &response, 200);
-  }
-
-
-  // if(msg.id == idCanbusEnergyMeter)
-  // {
-  //   Serial1.println("EnergyMeter Found");
-  // }
-  // CAN_FORMAT format = static_cast<CAN_FORMAT>(msg.format);
-  // switch (format)
-  // {
-  // case EXTENDED_FORMAT:
-  //   Serial1.println("Format : Extended");
-  //   break;
-  
-  // default:
-  //   Serial1.println("Format : Standard");
-  //   break;
-  // }
-  // CAN_FRAME frame = static_cast<CAN_FRAME>(msg.type);
-  // switch (frame)
-  // {
-  // case REMOTE_FRAME:
-  //   Serial1.println("Type : Remote");
-  //   break;
-  
-  // default:
-  //   Serial1.println("Type : Data");
-  //   break;
-  // }
-  
-  // Serial1.print("Data : ");
-  // for (size_t i = 0; i < length; i++)
-  // {
-  //   Serial1.print(msg.data[i], HEX);
-  //   Serial1.print(" ");
-  // }
-  // Serial1.println();
-  // xSemaphoreGive(myLock);
-  
+  }  
 }
 
 int myFunction(int, int);
@@ -492,45 +469,73 @@ static void relayTask(void *arg)
   int32_t averageVoltage = 0;
   int32_t averageCurrent = 0;
   int32_t averageSoc = 0;
+  bool isFirstRun = true;
+  unsigned long previousTime = 0;
   while(1)
   {
     // Serial1.println("Relay Task");
-    detectedBattery = 0;
-    averageVoltage = 0;
-    averageCurrent = 0;
-    totalVoltage = 0;
-    totalCurrent = 0;
-    totalSoc = 0;
-    for (size_t i = 0; i < batterySize; i++)
+    while(isFirstRun)
     {
-      if (batteryData[i].isUpdated && batteryData[i].mosfetStatus.dmos) // if the value constanly updated and dmos is connected to load, count the battery
+      if((millis() - previousTime) > 10000 || isDataReady)
+      // if(isDataReady)
       {
-        totalVoltage += batteryData[i].packVoltage;
-        totalCurrent += batteryData[i].packCurrent;
-        totalSoc += batteryData[i].packSoc;
-        detectedBattery++;
+        isFirstRun = false;
+        Serial1.println("Data Ready");
+        // lastTime = millis();
       }
-      else
-      {
-        continue;
-      }
+      vTaskDelay(500);
     }
+    // detectedBattery = 0;
+    // averageVoltage = 0;
+    // averageCurrent = 0;
+    // totalVoltage = 0;
+    // totalCurrent = 0;
+    // totalSoc = 0;
+    // for (size_t i = 0; i < batterySize; i++)
+    // {
+    //   if (batteryData[i].isUpdated && batteryData[i].mosfetStatus.dmos) // if the value constanly updated and dmos is connected to load, count the battery
+    //   {
+    //     totalVoltage += batteryData[i].packVoltage;
+    //     totalCurrent += batteryData[i].packCurrent;
+    //     totalSoc += batteryData[i].packSoc;
+    //     detectedBattery++;
+    //   }
+    //   else
+    //   {
+    //     continue;
+    //   }
+    // }
     
-    averageVoltage = totalVoltage / detectedBattery;
-    averageCurrent = totalCurrent / detectedBattery;
-    averageSoc = totalSoc / detectedBattery;
+    // averageVoltage = totalVoltage / detectedBattery;
+    // averageCurrent = totalCurrent;
+    // averageSoc = totalSoc / detectedBattery;
+
+    packData.calculate();
+    averageVoltage = packData.getAverageVoltage();
+    // Serial1.println("AVERAGE VOLTAGE : " + String(averageVoltage));
+
     if(timeToShow > 5)
     {
-      Serial1.println("Detected Battery : " + String(detectedBattery));
-      Serial1.println("Average Pack Voltage : " + String(averageVoltage));
-      Serial1.println("Average Pack Current : " + String(averageCurrent));
-      Serial1.println("Average Pack Soc : " + String(averageSoc));
+      // packData.printInfo();
+      // Serial1.println("Detected Battery : " + String(detectedBattery));
+      // Serial1.println("Average Pack Voltage : " + String(averageVoltage));
+      // Serial1.println("Average Pack Current : " + String(averageCurrent));
+      // Serial1.println("Average Pack Soc : " + String(averageSoc));
+      Serial1.println("================Begin==============");
+      Serial1.println("Total Battery : " + String(packData.getTotalBattery()));
+      Serial1.println("Active Battery : " + String(packData.getActiveBattery()));
+      Serial1.println("Inactive Battery : " + String(packData.getInactiveBattery()));
+      Serial1.println("Average Pack Voltage : " + String(packData.getAverageVoltage()));
+      Serial1.println("Total Pack Current : " + String(packData.getTotalCurrent()));
+      Serial1.println("Average Pack Soc : " + String(packData.getAverageSoc()));
+
       Serial1.println("Bts Voltage Alarm : " + String(voltageAlarm.btsLowVoltage));
       Serial1.println("Bts Upper Threshold : " + String(voltageAlarm.btsReconnectVoltage));
       Serial1.println("Vsat Voltage Alarm : " + String(voltageAlarm.vsatLowVoltage));
       Serial1.println("Vsat Upper Threshold : " + String(voltageAlarm.vsatReconnectVoltage));
       Serial1.println("Other Voltage Alarm : " + String(voltageAlarm.otherLowVoltage));
       Serial1.println("Other Upper Threshold : " + String(voltageAlarm.otherReconnectVoltage));
+      Serial1.println("================End==============");
       timeToShow = 0;
     }
     
@@ -552,7 +557,7 @@ static void relayTask(void *arg)
 
     if(!isOverriden)
     {
-      Serial1.println("Is Not Overriden");
+      // Serial1.println("Is Not Overriden");
       if (averageVoltage <= voltageAlarm.btsLowVoltage)
       {
         btsOn = false;
@@ -740,8 +745,8 @@ static void canSenderTask(void *arg)
 {
   bool isOff = true;
   CAN_msg_t msg;
-  int idInc = 1;
-  int totalId = sizeof(batteryData) / sizeof(batteryData[0]);
+  int idInc = 0;
+  // int totalId = sizeof(batteryData) / sizeof(batteryData[0]);
   // Serial.println("Total size = " + String(totalId));
   while(1)
   {
@@ -753,24 +758,32 @@ static void canSenderTask(void *arg)
     else
     {
       // msg to keep the battery awake
-      if(idInc > totalId)
+      // if(idInc >= packData.stack.size())
+      // {
+      //   idInc = 0;
+      // }
+      // BatteryData temp = packData.getData(idInc);
+      for (size_t i = 1; i <= 24; i++)
       {
-        idInc = 1;
+        /* code */
+        CAN_msg_t msg;
+        msg.id = WAKE_ADDR + (i << 8);
+        msg.format = CAN_FORMAT::EXTENDED_FORMAT;
+        msg.type = CAN_FRAME::DATA_FRAME;
+        msg.len = 8;
+        msg.data[0] = 0x33;
+        msg.data[1] = 0x63;
+        msg.data[2] = 0x60;
+        msg.data[3] = 0x64;
+        msg.data[4] = 0x64;
+        msg.data[5] = 0x64;
+        msg.data[6] = 0x53;
+        msg.data[7] = 0x64;
+        can.send(&msg);
+        // vTaskDelay(20);
       }
-      CAN_msg_t msg;
-      msg.id = WAKE_ADDR + (idInc << 8);
-      msg.format = CAN_FORMAT::EXTENDED_FORMAT;
-      msg.type = CAN_FRAME::DATA_FRAME;
-      msg.len = 8;
-      msg.data[0] = 0x33;
-      msg.data[1] = 0x63;
-      msg.data[2] = 0x60;
-      msg.data[3] = 0x64;
-      msg.data[4] = 0x64;
-      msg.data[5] = 0x64;
-      msg.data[6] = 0x53;
-      msg.data[7] = 0x64;
-      can.send(&msg);
+      
+        
       // Serial1.println("Send CAN to wake up battery");
       // Serial1.print("Frame id : ");
       // Serial1.println(msg.id, HEX);
@@ -781,8 +794,7 @@ static void canSenderTask(void *arg)
       //   Serial1.print(" ");
       // }
       // Serial.println();
-      
-      idInc++;
+      // idInc++;
     }
     // vTaskDelay(1000);
   }
@@ -1021,10 +1033,29 @@ void setup() {
   {
     Serial1.println("Failed to set filter");
   }
+  for (size_t i = 1; i <= 64; i++)
+  {
+    CAN_msg_t msg;
+    msg.id = WAKE_ADDR + (i << 8);
+    msg.format = CAN_FORMAT::EXTENDED_FORMAT;
+    msg.type = CAN_FRAME::DATA_FRAME;
+    msg.len = 8;
+    msg.data[0] = 0x33;
+    msg.data[1] = 0x63;
+    msg.data[2] = 0x60;
+    msg.data[3] = 0x64;
+    msg.data[4] = 0x64;
+    msg.data[5] = 0x64;
+    msg.data[6] = 0x53;
+    msg.data[7] = 0x64;
+    can.send(&msg);
+    delay(20);
+  }  
   vTaskStartScheduler();
 }
 
 void loop() {
+  // Serial1.println("Loop");
   can.loop();
   
   additionalCanData.relayState.vsat = digitalRead(FB1);
@@ -1037,16 +1068,17 @@ void loop() {
 
   if(millis() - lastCheckTime > 5000)
   {
-    for (size_t i = 0; i < batterySize; i++)
-    {
-      if (batteryData[i].isUpdated)
-      {
-        if(batteryData[i].cnt.previousPackUpdatedCounter == batteryData[i].cnt.packUpdatedCounter)
-        {
-          batteryData[i].isUpdated = 0;
-        }
-      }
-    }
+    // for (size_t i = 0; i < batterySize; i++)
+    // {
+    //   if (batteryData[i].isUpdated)
+    //   {
+    //     if(batteryData[i].cnt.previousPackUpdatedCounter == batteryData[i].cnt.packUpdatedCounter)
+    //     {
+    //       batteryData[i].isUpdated = 0;
+    //     }
+    //   }
+    // }
+    packData.removeUnusedData();
     lastCheckTime = millis();
   }
 
