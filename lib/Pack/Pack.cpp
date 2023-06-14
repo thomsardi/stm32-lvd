@@ -158,18 +158,15 @@ void Pack::removeUnusedData()
  * @param   id  id of the data
  * @return  BatteryData refer to DataDef.h for the struct member
 */
-BatteryData Pack::getData(const int id)
+BatteryData Pack::getData(const int index)
 {
     BatteryData data;
     data.id = 0;
-    for (size_t i = 0; i < stack.size(); i++)
+    if (index >= stack.size())
     {
-        if(stack.at(i).id == id)
-        {
-            return stack.at(i);
-        }
+        return data;
     }
-    return data;
+    return stack.at(index);
 }
 
 /**

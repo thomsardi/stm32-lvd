@@ -212,4 +212,10 @@ enum BaseAddress {
     WAKE_ADDR = 0x12640066
 };
 
+enum PeriodicAddress {
+    INA3221_ADDR = 0x1D40C8E7,
+    LOW_VOLTAGE_PARAM_ADDR = 0x1D40C8E8,
+    RECONNECT_VOLTAGE_PARAM_ADDR = 0x1D40C8E9
+};
+
 #endif

@@ -162,7 +162,7 @@ void canHandler(CAN_msg_t msg)
   }
   // return;
 
-  if (frameId == 0x1D42C8E8) //ehub write lvd low config
+  if (frameId == 0x1D41C8E6) //ehub write lvd low config
   {
     // Serial1.println("Write lvd low config");
     voltageAlarm.vsatLowVoltage = (msg.data[1] << 8) + msg.data[0];
@@ -228,7 +228,7 @@ void canHandler(CAN_msg_t msg)
     xQueueSend(canSenderTaskQueue, &response, 200);
   }
 
-  if (frameId == 0x1D43C8E8) //ehub write lvd reconnect config
+  if (frameId == 0x1D41C8E5) //ehub write lvd reconnect config
   {
     Serial1.println("Write lvd reconnect config");
     voltageAlarm.vsatReconnectVoltage = (msg.data[1] << 8) + msg.data[0];
@@ -282,7 +282,7 @@ void canHandler(CAN_msg_t msg)
     xQueueSend(canSenderTaskQueue, &response, 200);
   }
 
-  if(frameId == 0x1D44C8E8) //ehub write system config
+  if(frameId == 0x1D41C8E4) //ehub write system config
   {
     Serial1.println("Write system config");
     voltageAlarm.nominalBattery = (msg.data[1] << 8) + msg.data[0];
@@ -331,7 +331,7 @@ void canHandler(CAN_msg_t msg)
     // }
   }
 
-  if(frameId == 0x1D40C8E8) //ehub write relay
+  if(frameId == 0x1D41C8E7) //ehub write relay
   {
     Serial1.println("Ehub relay write");
     switch (msg.data[0])
@@ -401,7 +401,7 @@ void vsatON()
 {
   // digitalWrite(ON1, HIGH);
   digitalWrite(VSAT_ON, HIGH);
-  vTaskDelay(100);
+  vTaskDelay(200);
   digitalWrite(VSAT_ON, LOW);
   // digitalWrite(ON1, LOW);
   
@@ -411,7 +411,7 @@ void vsatOFF()
 {
   // digitalWrite(OFF1, HIGH);
   digitalWrite(VSAT_OFF, HIGH);
-  vTaskDelay(100);
+  vTaskDelay(200);
   digitalWrite(VSAT_OFF, LOW);
   // digitalWrite(OFF1, LOW);
 }
@@ -420,7 +420,7 @@ void btsON()
 {
   // digitalWrite(ON2, HIGH);
   digitalWrite(BTS_ON, HIGH);
-  vTaskDelay(100);
+  vTaskDelay(200);
   digitalWrite(BTS_ON, LOW);
   // digitalWrite(ON2, LOW);
 }
@@ -429,7 +429,7 @@ void btsOFF()
 {
   // digitalWrite(OFF2, HIGH);
   digitalWrite(BTS_OFF, HIGH);
-  vTaskDelay(100);
+  vTaskDelay(200);
   digitalWrite(BTS_OFF, LOW);
   // digitalWrite(OFF2, LOW);
 }
@@ -438,7 +438,7 @@ void otherON()
 {
   // digitalWrite(ON3, HIGH);
   digitalWrite(OTHER_ON, HIGH);
-  vTaskDelay(100);
+  vTaskDelay(200);
   digitalWrite(OTHER_ON, LOW);
   // digitalWrite(ON3, LOW);
 }
@@ -447,7 +447,7 @@ void otherOFF()
 {
   // digitalWrite(OFF3, HIGH);
   digitalWrite(OTHER_OFF, HIGH);
-  vTaskDelay(100);
+  vTaskDelay(200);
   digitalWrite(OTHER_OFF, LOW);
   // digitalWrite(OFF3, LOW);
 }
@@ -746,6 +746,7 @@ static void canSenderTask(void *arg)
   bool isOff = true;
   CAN_msg_t msg;
   int idInc = 0;
+  int paramId = 1;
   // int totalId = sizeof(batteryData) / sizeof(batteryData[0]);
   // Serial.println("Total size = " + String(totalId));
   while(1)
@@ -753,35 +754,99 @@ static void canSenderTask(void *arg)
     if (xQueueReceive(canSenderTaskQueue, &msg, 100) == pdTRUE) 
     {
       can.send(&msg);
+      vTaskDelay(20);
       // Serial1.println("Send CAN current & relay");
     }
     else
     {
       // msg to keep the battery awake
+      CAN_msg_t txBuff;
       // if(idInc >= packData.stack.size())
       // {
       //   idInc = 0;
       // }
-      // BatteryData temp = packData.getData(idInc);
-      for (size_t i = 1; i <= 24; i++)
+
+      if (idInc < packData.stack.size())
       {
-        /* code */
-        CAN_msg_t msg;
-        msg.id = WAKE_ADDR + (i << 8);
-        msg.format = CAN_FORMAT::EXTENDED_FORMAT;
-        msg.type = CAN_FRAME::DATA_FRAME;
-        msg.len = 8;
-        msg.data[0] = 0x33;
-        msg.data[1] = 0x63;
-        msg.data[2] = 0x60;
-        msg.data[3] = 0x64;
-        msg.data[4] = 0x64;
-        msg.data[5] = 0x64;
-        msg.data[6] = 0x53;
-        msg.data[7] = 0x64;
-        can.send(&msg);
-        // vTaskDelay(20);
+        BatteryData temp = packData.getData(idInc);
+        txBuff.id = WAKE_ADDR + (temp.id << 8);
+        txBuff.format = CAN_FORMAT::EXTENDED_FORMAT;
+        txBuff.type = CAN_FRAME::DATA_FRAME;
+        txBuff.len = 8;
+        txBuff.data[0] = 0x33;
+        txBuff.data[1] = 0x63;
+        txBuff.data[2] = 0x60;
+        txBuff.data[3] = 0x64;
+        txBuff.data[4] = 0x64;
+        txBuff.data[5] = 0x64;
+        txBuff.data[6] = 0x53;
+        txBuff.data[7] = 0x64;
+        can.send(&txBuff);
+        idInc++;
       }
+      else
+      {
+        switch (paramId)
+        {
+        case 1:
+          txBuff.id = PeriodicAddress::LOW_VOLTAGE_PARAM_ADDR;
+          txBuff.format = CAN_FORMAT::EXTENDED_FORMAT;
+          txBuff.type = CAN_FRAME::DATA_FRAME;
+          txBuff.len = 8;
+          txBuff.data[0] = voltageAlarm.vsatLowVoltage & 0xFF;
+          txBuff.data[1] = voltageAlarm.vsatLowVoltage >> 8;
+          txBuff.data[2] = voltageAlarm.otherLowVoltage & 0xFF;
+          txBuff.data[3] = voltageAlarm.otherLowVoltage >> 8;
+          txBuff.data[4] = voltageAlarm.btsLowVoltage & 0xFF;
+          txBuff.data[5] = voltageAlarm.btsLowVoltage >> 8;
+          txBuff.data[6] = 0x01;
+          txBuff.data[7] = 0x01;
+          can.send(&txBuff);
+          paramId++;
+          break;
+        case 2:
+          txBuff.id = PeriodicAddress::RECONNECT_VOLTAGE_PARAM_ADDR;
+          txBuff.format = CAN_FORMAT::EXTENDED_FORMAT;
+          txBuff.type = CAN_FRAME::DATA_FRAME;
+          txBuff.len = 8;
+          txBuff.data[0] = voltageAlarm.vsatReconnectVoltage & 0xFF;
+          txBuff.data[1] = voltageAlarm.vsatReconnectVoltage >> 8;
+          txBuff.data[2] = voltageAlarm.otherReconnectVoltage & 0xFF;
+          txBuff.data[3] = voltageAlarm.otherReconnectVoltage >> 8;
+          txBuff.data[4] = voltageAlarm.btsReconnectVoltage & 0xFF;
+          txBuff.data[5] = voltageAlarm.btsReconnectVoltage >> 8;
+          txBuff.data[6] = 0x01;
+          txBuff.data[7] = 0x01;
+          can.send(&txBuff);
+          paramId = 1;
+          idInc = 0;
+          break;
+        
+        default:
+          break;
+        }
+      }
+
+      
+      // for (size_t i = 1; i <= 24; i++)
+      // {
+      //   /* code */
+      //   CAN_msg_t msg;
+      //   msg.id = WAKE_ADDR + (i << 8);
+      //   msg.format = CAN_FORMAT::EXTENDED_FORMAT;
+      //   msg.type = CAN_FRAME::DATA_FRAME;
+      //   msg.len = 8;
+      //   msg.data[0] = 0x33;
+      //   msg.data[1] = 0x63;
+      //   msg.data[2] = 0x60;
+      //   msg.data[3] = 0x64;
+      //   msg.data[4] = 0x64;
+      //   msg.data[5] = 0x64;
+      //   msg.data[6] = 0x53;
+      //   msg.data[7] = 0x64;
+      //   can.send(&msg);
+      //   // vTaskDelay(20);
+      // }
       
         
       // Serial1.println("Send CAN to wake up battery");
@@ -795,6 +860,7 @@ static void canSenderTask(void *arg)
       // }
       // Serial.println();
       // idInc++;
+      vTaskDelay(200);
     }
     // vTaskDelay(1000);
   }
@@ -1101,7 +1167,7 @@ void loop() {
     int current3bit2 = (additionalCanData.current[2] - current3bit1) * 100;
 
     CAN_msg_t msg;
-    msg.id = 0x1D40C8E7;
+    msg.id = PeriodicAddress::INA3221_ADDR;
     msg.format = CAN_FORMAT::EXTENDED_FORMAT;
     msg.type = CAN_FRAME::DATA_FRAME;
     msg.len = 8;
