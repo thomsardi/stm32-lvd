@@ -401,7 +401,7 @@ void vsatON()
 {
   // digitalWrite(ON1, HIGH);
   digitalWrite(VSAT_ON, HIGH);
-  vTaskDelay(200);
+  vTaskDelay(50);
   digitalWrite(VSAT_ON, LOW);
   // digitalWrite(ON1, LOW);
   
@@ -411,7 +411,7 @@ void vsatOFF()
 {
   // digitalWrite(OFF1, HIGH);
   digitalWrite(VSAT_OFF, HIGH);
-  vTaskDelay(200);
+  vTaskDelay(50);
   digitalWrite(VSAT_OFF, LOW);
   // digitalWrite(OFF1, LOW);
 }
@@ -420,7 +420,7 @@ void btsON()
 {
   // digitalWrite(ON2, HIGH);
   digitalWrite(BTS_ON, HIGH);
-  vTaskDelay(200);
+  vTaskDelay(50);
   digitalWrite(BTS_ON, LOW);
   // digitalWrite(ON2, LOW);
 }
@@ -429,7 +429,7 @@ void btsOFF()
 {
   // digitalWrite(OFF2, HIGH);
   digitalWrite(BTS_OFF, HIGH);
-  vTaskDelay(200);
+  vTaskDelay(50);
   digitalWrite(BTS_OFF, LOW);
   // digitalWrite(OFF2, LOW);
 }
@@ -438,7 +438,7 @@ void otherON()
 {
   // digitalWrite(ON3, HIGH);
   digitalWrite(OTHER_ON, HIGH);
-  vTaskDelay(200);
+  vTaskDelay(50);
   digitalWrite(OTHER_ON, LOW);
   // digitalWrite(ON3, LOW);
 }
@@ -447,7 +447,7 @@ void otherOFF()
 {
   // digitalWrite(OFF3, HIGH);
   digitalWrite(OTHER_OFF, HIGH);
-  vTaskDelay(200);
+  vTaskDelay(50);
   digitalWrite(OTHER_OFF, LOW);
   // digitalWrite(OFF3, LOW);
 }
@@ -557,7 +557,7 @@ static void relayTask(void *arg)
 
     if(!isOverriden)
     {
-      // Serial1.println("Is Not Overriden");
+      Serial1.println("Is Not Overriden");
       if (averageVoltage <= voltageAlarm.btsLowVoltage)
       {
         btsOn = false;
@@ -579,25 +579,25 @@ static void relayTask(void *arg)
       */
       if (vsatOn) //if vsat relay should be on
       {
-        if(!additionalCanData.relayState.vsat) //if feedback still off, re-trigger relay
+        // if(!additionalCanData.relayState.vsat) //if feedback still off, re-trigger relay
         // if(!vsatOnSimState) //if feedback still off, re-trigger relay
-        {
+        // {
           Serial1.println("===Vsat On===");
           vsatOnSimState = true;
           ehubRelay.vsat = true;
           vsatON();
-        }
+        // }
       }
       else //if vsat relay should be off
       {
-        if(additionalCanData.relayState.vsat) //if feedback still on, re-trigger relay
+        // if(additionalCanData.relayState.vsat) //if feedback still on, re-trigger relay
         // if(vsatOnSimState) //if feedback still on, re-trigger relay
-        {
+        // {
           Serial1.println("===Vsat Off===");
           vsatOnSimState = false;
           ehubRelay.vsat = false;
           vsatOFF();
-        }
+        // }
         if(averageVoltage >= voltageAlarm.getVsatUpperThreshold())
         // if(averageVoltage >= voltageAlarm.vsatReconnectVoltage)
         {
@@ -608,25 +608,25 @@ static void relayTask(void *arg)
       
       if (btsOn) //if bts relay should be on
       {
-        if(!additionalCanData.relayState.bts) //if feedback still off, re-trigger relay
+        // if(!additionalCanData.relayState.bts) //if feedback still off, re-trigger relay
         // if(!btsOnSimState) //if feedback still off, re-trigger relay
-        {
+        // {
           Serial1.println("===Bts On===");
           btsOnSimState = true;
           ehubRelay.bts = true;
           btsON();
-        }      
+        // }      
       }
       else //if bts relay should be off
       {
-        if(additionalCanData.relayState.bts) //if feedback still on, re-trigger relay
+        // if(additionalCanData.relayState.bts) //if feedback still on, re-trigger relay
         // if(btsOnSimState) //if feedback still on, re-trigger relay
-        {
+        // {
           Serial1.println("===Bts Off===");
           btsOnSimState = false;
           ehubRelay.bts = false;
           btsOFF();
-        }
+        // }
         // if(averageVoltage >= voltageAlarm.getBtsUpperThreshold())
         if(averageVoltage >= voltageAlarm.btsReconnectVoltage)
         {
@@ -637,25 +637,25 @@ static void relayTask(void *arg)
       if (otherOn) //if other relay should be on
       {
         
-        if(!additionalCanData.relayState.other) //if feedback still off, re-trigger relay
+        // if(!additionalCanData.relayState.other) //if feedback still off, re-trigger relay
         // if(!otherOnSimState) //if feedback still off, re-trigger relay
-        {
+        // {
           Serial1.println("===Other On===");  
           otherOnSimState = true;
           ehubRelay.other = true;
           otherON();
-        }
+        // }
       }
       else //if other relay should be off
       {
-         if(additionalCanData.relayState.other) //if feedback still on, re-trigger relay
+        // if(additionalCanData.relayState.other) //if feedback still on, re-trigger relay
         // if(otherOnSimState) //if feedback still on, re-trigger relay
-        {
+        // {
           Serial1.println("===Other Off===");  
           otherOnSimState = false;
           ehubRelay.other = false;
           otherOFF();
-        }
+        // }
         if(averageVoltage >= voltageAlarm.getOtherUpperThreshold())
         // if(averageVoltage >= voltageAlarm.otherReconnectVoltage)
         {
@@ -668,71 +668,71 @@ static void relayTask(void *arg)
       Serial1.println("Overriden");
       if(ehubRelay.vsat)  // if ehub activate vsat relay
       {
-        if(!additionalCanData.relayState.vsat) //if feedback still off, re-trigger relay
+        // if(!additionalCanData.relayState.vsat) //if feedback still off, re-trigger relay
         // if(!vsatOnSimState)
-        {
+        // {
           Serial1.println("Vsat On with override");
           vsatOnSimState = true;
           ehubRelay.vsat = true;
           vsatON();
-        }
+        // }
       }
       else  //if ehub deactivate vsat relay
       {
-        if(additionalCanData.relayState.vsat) //if feedback still on, re-trigger relay
+        // if(additionalCanData.relayState.vsat) //if feedback still on, re-trigger relay
         // if(vsatOnSimState)
-        {
+        // {
           Serial1.println("Vsat off with override");
           vsatOnSimState = false;
           ehubRelay.vsat = false;
           vsatOFF();
-        }  
+        // }  
       }
 
       if (ehubRelay.bts)  // if ehub activate bts relay
       {
-        if(!additionalCanData.relayState.bts) //if feedback still off, re-trigger relay
+        // if(!additionalCanData.relayState.bts) //if feedback still off, re-trigger relay
         // if(!btsOnSimState)
-        {
+        // {
           Serial1.println("Bts on with override");
           btsOnSimState = true;
           ehubRelay.bts = true;
           btsON();
-        }
+        // }
       }
       else  //if ehub deactivate bts relay
       {
-        if(additionalCanData.relayState.bts)  //if feedback still on, re-trigger relay
+        // if(additionalCanData.relayState.bts)  //if feedback still on, re-trigger relay
         // if(btsOnSimState)
-        {
+        // {
           Serial1.println("Bts off with override");
           btsOnSimState = false;
           ehubRelay.bts = false;
           btsOFF();
-        }
+        // }
       }
       
       if (ehubRelay.other) // if ehub activate other relay
       {
-        if(!additionalCanData.relayState.other) //if feedback still off, re-trigger relay
+        // if(!additionalCanData.relayState.other) //if feedback still off, re-trigger relay
         // if(!otherOnSimState)
-        {
+        // {
           Serial1.println("Other on with override");
           otherOnSimState = true;
           ehubRelay.other = true;
           otherON();
-        }
+        // }
       }
       else  //if ehub deactivate other relay
       {
-        if(additionalCanData.relayState.other)  //if feedback still on, re-trigger relay
+        // if(additionalCanData.relayState.other)  //if feedback still on, re-trigger relay
         // if(otherOnSimState)
-        {
+        // {
           Serial1.println("Other off with override");
           otherOnSimState = false;
           ehubRelay.other = false;
           otherOFF();
-        }
+        // }
       }
     }
     timeToShow++;
@@ -789,6 +789,51 @@ static void canSenderTask(void *arg)
         switch (paramId)
         {
         case 1:
+          txBuff.id = PeriodicAddress::WAKE_ADDR_SET1;
+          txBuff.format = CAN_FORMAT::EXTENDED_FORMAT;
+          txBuff.type = CAN_FRAME::DATA_FRAME;
+          txBuff.len = 8;
+          txBuff.data[0] = 0x33;
+          txBuff.data[1] = 0x63;
+          txBuff.data[2] = 0x6D;
+          txBuff.data[3] = 0x5D;
+          txBuff.data[4] = 0x5F;
+          txBuff.data[5] = 0x4E;
+          txBuff.data[6] = 0x4E;
+          txBuff.data[7] = 0x49;
+          can.send(&txBuff);
+          paramId++;
+        case 2:
+          txBuff.id = PeriodicAddress::WAKE_ADDR_SET2;
+          txBuff.format = CAN_FORMAT::EXTENDED_FORMAT;
+          txBuff.type = CAN_FRAME::DATA_FRAME;
+          txBuff.len = 8;
+          txBuff.data[0] = 0x33;
+          txBuff.data[1] = 0x63;
+          txBuff.data[2] = 0x49;
+          txBuff.data[3] = 0x64;
+          txBuff.data[4] = 0x5C;
+          txBuff.data[5] = 0x64;
+          txBuff.data[6] = 0x63;
+          txBuff.data[7] = 0x7D;
+          can.send(&txBuff);
+          paramId++;
+        case 3:
+          txBuff.id = PeriodicAddress::WAKE_ADDR_SET3;
+          txBuff.format = CAN_FORMAT::EXTENDED_FORMAT;
+          txBuff.type = CAN_FRAME::DATA_FRAME;
+          txBuff.len = 7;
+          txBuff.data[0] = 0x33;
+          txBuff.data[1] = 0x63;
+          txBuff.data[2] = 0x61;
+          txBuff.data[3] = 0x64;
+          txBuff.data[4] = 0x64;
+          txBuff.data[5] = 0x64;
+          txBuff.data[6] = 0x64;
+          txBuff.data[7] = 0x7D;
+          can.send(&txBuff);
+          paramId++;
+        case 4:
           txBuff.id = PeriodicAddress::LOW_VOLTAGE_PARAM_ADDR;
           txBuff.format = CAN_FORMAT::EXTENDED_FORMAT;
           txBuff.type = CAN_FRAME::DATA_FRAME;
@@ -804,7 +849,7 @@ static void canSenderTask(void *arg)
           can.send(&txBuff);
           paramId++;
           break;
-        case 2:
+        case 5:
           txBuff.id = PeriodicAddress::RECONNECT_VOLTAGE_PARAM_ADDR;
           txBuff.format = CAN_FORMAT::EXTENDED_FORMAT;
           txBuff.type = CAN_FRAME::DATA_FRAME;
@@ -821,7 +866,6 @@ static void canSenderTask(void *arg)
           paramId = 1;
           idInc = 0;
           break;
-        
         default:
           break;
         }
