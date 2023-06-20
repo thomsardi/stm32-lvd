@@ -499,6 +499,7 @@ void CANController::loop()
 
 /**
  * @brief   register handler / callback when can packet data is arrived
+ *          @note   take a funtion pointer that receive CAN_msg_t and return nothing
  * @param   handler function which return nothing and takes a CAN_msg_t as parameter
 */
 void CANController::onReceive(void (*handler)(CAN_msg_t))

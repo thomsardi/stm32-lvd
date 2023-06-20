@@ -39,6 +39,8 @@
 #define UNIQUE_ID_ADDR 32
 #define FLAG_SET_ADDR 36
 
+#define SOFTWARE_VERSION 2
+
 #define idCanbusEnergyMeter 0x1D40C8E7
 
 CANController can;
@@ -66,6 +68,9 @@ unsigned long lastCheckTime = 0;
 BatteryData batteryData[24];
 size_t batterySize = sizeof(batteryData) / sizeof(batteryData[0]);
 
+CAN_msg_t canMsgStorage[12];
+Vector<CAN_msg_t> canTxBuffer(canMsgStorage);
+
 BatteryData dummyData[24];
 Pack packData(dummyData, 24, 0);
 
@@ -74,11 +79,11 @@ KeepAliveCounter keepAliveCounter;
 bool isDataReady = false;
 // put function declarations here:
 
-void testCan(CAN_msg_t msg)
-{
-  Serial1.println("can handler block");
-}
-
+/**
+ * @brief callback to handle CAN data message
+ *        @note register the callback first to CanController object, each time can receive data, this callback will be called
+ * @param msg   CAN data message
+*/
 void canHandler(CAN_msg_t msg)
 {
   uint32_t frameId = msg.id;
@@ -89,13 +94,20 @@ void canHandler(CAN_msg_t msg)
   int baseAddr = 0;
   // Serial1.print("Frame Addr : ");
   // Serial1.println(frameId, HEX);
+  // Serial1.print("Data : ");
+  // for (int index = 0; index < msg.len; index ++)
+  // {
+  //   Serial1.print(msg.data[index]);
+  //   Serial1.print(" ");
+  // }
+  // Serial1.println();
   // return;
   // Serial1.println((frameId & 0xFFFFFFC0), HEX);
-  switch (frameId & 0xFFFFFFC0)
+  switch (frameId & 0xFFFFFFC0) //Since the id of battery is different, the changing value needs to be eliminate by bit AND it with 0
   {
-  case PACK_DATA:
+  case PACK_DATA: //if the frame is for PACK_DATA, update the respective struct
     baseAddr = static_cast<int>(PACK_ADDR);
-    index = baseAddr - frameId;
+    index = baseAddr - frameId; // find the id of the device
     // Serial1.println("Index : " + String(index));
     // return;
     // index = abs(index);
@@ -110,7 +122,7 @@ void canHandler(CAN_msg_t msg)
     halfPackData.packVoltage = batProc.getPackVoltage(msg, 2, 2);
     halfPackData.packCurrent = batProc.getPackCurrent(msg, 4, 2);
     halfPackData.packSoc = batProc.getPackSoc(msg, 6, 2);
-    packData.insert(halfPackData);
+    packData.insert(halfPackData);  //insert the data, overwrite the existing or add new data
     isDataReady = true;
     // batteryData[index - 1].id = index;
     // batteryData[index - 1].isUpdated = 1;
@@ -124,7 +136,7 @@ void canHandler(CAN_msg_t msg)
     // Serial1.println("Pack Soc : " + String(batteryData[index - 1].packSoc));
     // return;
     break;
-  case MOSF_TEMP :
+  case MOSF_TEMP :  //if the frame is for MOSF_TEMP, update the respective struct
     baseAddr = static_cast<int>(MOSF_TEMP_ADDR);
     index = baseAddr - frameId;
 
@@ -136,6 +148,171 @@ void canHandler(CAN_msg_t msg)
     halfMosfetData.temperature.bot = batProc.getTemperature(msg,5, 1);
     halfMosfetData.temperature.cmosTemp = batProc.getTemperature(msg,6, 1);
     halfMosfetData.temperature.dmosTemp = batProc.getTemperature(msg,7, 1);
+
+    CAN_msg_t txBuff;
+    
+    if (halfMosfetData.temperature.dmosTemp < 50)
+    {
+      /* code */
+      // Serial1.println("ID : " + String(index));
+      // Serial1.println("Dmos temperature normal");
+      if (!halfMosfetData.mosfetStatus.dmos)
+      { 
+        // Serial1.println("Dmos Off");
+        /**
+         * @brief Force dmos on when the received dmos status is off
+         *        @note 4 frame data need to be sent in order to activate dmos, the frame data pushed into queue
+         *              to be later handled by canSenderTask
+        */
+        //First frame data
+        txBuff.id = CMOS_DMOS_CONTROL_ADDR_1 + (index << 8);
+        txBuff.format = CAN_FORMAT::EXTENDED_FORMAT;
+        txBuff.type = CAN_FRAME::DATA_FRAME;
+        txBuff.len = 8;
+        txBuff.data[0] = MosfetType::DISCHARGE_MOSFET_TYPE; //mosfet type for discharge
+        txBuff.data[1] = 0x64;
+        txBuff.data[2] = MosfetSelector::DISCHARGE_MOSFET_SELECTOR;
+        txBuff.data[3] = 0x64;
+        txBuff.data[4] = 0x64;
+        txBuff.data[5] = 0x64;
+        txBuff.data[6] = 0x63;
+        txBuff.data[7] = 0x64;
+        xQueueSend(canSenderTaskQueue, &txBuff, 0);
+        // canTxBuffer.push_back(txBuff);
+
+        //Second frame data
+        // txBuff.id = CMOS_DMOS_CONTROL_ADDR_2 - (index << 8);
+        // txBuff.format = CAN_FORMAT::EXTENDED_FORMAT;
+        // txBuff.type = CAN_FRAME::DATA_FRAME;
+        // txBuff.len = 3;
+        // txBuff.data[0] = MosfetType::DISCHARGE_MOSFET_TYPE; //mosfet type for discharge
+        // txBuff.data[1] = 0x64;
+        // txBuff.data[2] = 0x64;
+        // txBuff.data[3] = 0x64;  //don't care
+        // txBuff.data[4] = 0x64;  //don't care
+        // txBuff.data[5] = 0x64;  //don't care
+        // txBuff.data[6] = 0x63;  //don't care
+        // txBuff.data[7] = 0x64;  //don't care
+        // canTxBuffer.push_back(txBuff);
+
+        //Third frame data  
+        txBuff.id = CMOS_DMOS_CONTROL_ADDR_3 + (index << 8);
+        txBuff.format = CAN_FORMAT::EXTENDED_FORMAT;
+        txBuff.type = CAN_FRAME::DATA_FRAME;
+        txBuff.len = 6;
+        txBuff.data[0] = MosfetType::DISCHARGE_MOSFET_TYPE; //mosfet type for discharge
+        txBuff.data[1] = 0x64;
+        txBuff.data[2] = MosfetState::ON_STATE;
+        txBuff.data[3] = 0x64;  
+        txBuff.data[4] = 0x64;  
+        txBuff.data[5] = 0x64;  
+        txBuff.data[6] = 0x63;  //don't care
+        txBuff.data[7] = 0x64;  //don't care
+        xQueueSend(canSenderTaskQueue, &txBuff, 0);
+        // canTxBuffer.push_back(txBuff);
+
+        //Fourth frame data  
+        // txBuff.id = CMOS_DMOS_CONTROL_ADDR_4 - (index << 8);
+        // txBuff.format = CAN_FORMAT::EXTENDED_FORMAT;
+        // txBuff.type = CAN_FRAME::DATA_FRAME;
+        // txBuff.len = 3;
+        // txBuff.data[0] = MosfetType::DISCHARGE_MOSFET_TYPE; //mosfet type for discharge
+        // txBuff.data[1] = 0x64;
+        // txBuff.data[2] = 0x64;
+        // txBuff.data[3] = 0x64;  //don't care
+        // txBuff.data[4] = 0x64;  //don't care
+        // txBuff.data[5] = 0x64;  //don't care
+        // txBuff.data[6] = 0x63;  //don't care
+        // txBuff.data[7] = 0x64;  //don't care
+        // canTxBuffer.push_back(txBuff);      
+      }
+    }
+    else
+    {
+      // Serial1.println("ID : " + String(index));
+      // Serial1.println("Dmos temperature abnormal");
+    }
+    
+    if (halfMosfetData.temperature.cmosTemp < 50)
+    {
+      /* code */
+      // Serial1.println("ID : " + String(index));
+      // Serial1.println("Cmos temperature normal");
+      if (!halfMosfetData.mosfetStatus.cmos)
+      { 
+        // Serial1.println("Cmos Off");
+        /**
+         * @brief Force cmos on when the received cmos status is off
+         *        @note 4 frame data need to be sent in order to activate cmos, the frame data pushed into queue
+         *              to be later handled by canSenderTask
+        */
+        //First frame data
+        txBuff.id = CMOS_DMOS_CONTROL_ADDR_1 + (index << 8);
+        txBuff.format = CAN_FORMAT::EXTENDED_FORMAT;
+        txBuff.type = CAN_FRAME::DATA_FRAME;
+        txBuff.len = 8;
+        txBuff.data[0] = MosfetType::CHARGE_MOSFET_TYPE; //mosfet type for charge
+        txBuff.data[1] = 0x64;
+        txBuff.data[2] = MosfetSelector::CHARGE_MOSFET_SELECTOR;
+        txBuff.data[3] = 0x64;
+        txBuff.data[4] = 0x64;
+        txBuff.data[5] = 0x64;
+        txBuff.data[6] = 0x63;
+        txBuff.data[7] = 0x64;
+        xQueueSend(canSenderTaskQueue, &txBuff, 0);
+
+        //Second frame data
+        // txBuff.id = CMOS_DMOS_CONTROL_ADDR_2 - (index << 8);
+        // txBuff.format = CAN_FORMAT::EXTENDED_FORMAT;
+        // txBuff.type = CAN_FRAME::DATA_FRAME;
+        // txBuff.len = 3;
+        // txBuff.data[0] = MosfetType::CHARGE_MOSFET_TYPE; //mosfet type for charge
+        // txBuff.data[1] = 0x64;
+        // txBuff.data[2] = 0x64;
+        // txBuff.data[3] = 0x64;  //don't care
+        // txBuff.data[4] = 0x64;  //don't care
+        // txBuff.data[5] = 0x64;  //don't care
+        // txBuff.data[6] = 0x63;  //don't care
+        // txBuff.data[7] = 0x64;  //don't care
+        // xQueueSend(canSenderTaskQueue, &txBuff, 0);  
+
+        //Third frame data  
+        txBuff.id = CMOS_DMOS_CONTROL_ADDR_3 + (index << 8);
+        txBuff.format = CAN_FORMAT::EXTENDED_FORMAT;
+        txBuff.type = CAN_FRAME::DATA_FRAME;
+        txBuff.len = 6;
+        txBuff.data[0] = MosfetType::CHARGE_MOSFET_TYPE; //mosfet type for charge
+        txBuff.data[1] = 0x64;
+        txBuff.data[2] = MosfetState::ON_STATE;
+        txBuff.data[3] = 0x64;  
+        txBuff.data[4] = 0x64;  
+        txBuff.data[5] = 0x64;  
+        txBuff.data[6] = 0x63;  //don't care
+        txBuff.data[7] = 0x64;  //don't care
+        xQueueSend(canSenderTaskQueue, &txBuff, 0);
+
+        //Fourth frame data  
+        // txBuff.id = CMOS_DMOS_CONTROL_ADDR_4 - (index << 8);
+        // txBuff.format = CAN_FORMAT::EXTENDED_FORMAT;
+        // txBuff.type = CAN_FRAME::DATA_FRAME;
+        // txBuff.len = 3;
+        // txBuff.data[0] = MosfetType::CHARGE_MOSFET_TYPE; //mosfet type for charge
+        // txBuff.data[1] = 0x64;
+        // txBuff.data[2] = 0x64;
+        // txBuff.data[3] = 0x64;  //don't care
+        // txBuff.data[4] = 0x64;  //don't care
+        // txBuff.data[5] = 0x64;  //don't care
+        // txBuff.data[6] = 0x63;  //don't care
+        // txBuff.data[7] = 0x64;  //don't care
+        // xQueueSend(canSenderTaskQueue, &txBuff, 0);
+      }
+    }
+    else
+    {
+      // Serial1.println("ID : " + String(index));
+      // Serial1.println("Cmos temperature abnormal");
+    }
+    
     packData.insert(halfMosfetData);
 
     // batteryData[index - 1].id = index;
@@ -167,8 +344,8 @@ void canHandler(CAN_msg_t msg)
     // Serial1.println("Write lvd low config");
     voltageAlarm.vsatLowVoltage = (msg.data[1] << 8) + msg.data[0];
     uint16_t temp;
-    EEPROM.get(LVD_LOW_VSAT_ADDR, temp);
-    if(temp != voltageAlarm.vsatLowVoltage)
+    EEPROM.get(LVD_LOW_VSAT_ADDR, temp);  //get the value from eeprom
+    if(temp != voltageAlarm.vsatLowVoltage) //check if the value is same, eeprom doesn't need to be updated, prolong the eeprom life
     {
       Serial1.println("Write to EEPROM");
       EEPROM.put(LVD_LOW_VSAT_ADDR, voltageAlarm.vsatLowVoltage);
@@ -179,8 +356,8 @@ void canHandler(CAN_msg_t msg)
     }
 
     voltageAlarm.otherLowVoltage = (msg.data[3] << 8) + msg.data[2];
-    EEPROM.get(LVD_LOW_OTHER_ADDR, temp);
-    if(temp != voltageAlarm.otherLowVoltage)
+    EEPROM.get(LVD_LOW_OTHER_ADDR, temp); //get the value from eeprom
+    if(temp != voltageAlarm.otherLowVoltage)  //check if the value is same, eeprom doesn't need to be updated, prolong the eeprom life
     {
       Serial1.println("Write to EEPROM");
       EEPROM.put(LVD_LOW_OTHER_ADDR, voltageAlarm.otherLowVoltage);
@@ -191,8 +368,8 @@ void canHandler(CAN_msg_t msg)
     }
 
     voltageAlarm.btsLowVoltage = (msg.data[5] << 8) + msg.data[4];
-    EEPROM.get(LVD_LOW_BTS_ADDR, temp);
-    if(temp != voltageAlarm.btsLowVoltage)
+    EEPROM.get(LVD_LOW_BTS_ADDR, temp); //get the value from eeprom
+    if(temp != voltageAlarm.btsLowVoltage)  //check if the value is same, eeprom doesn't need to be updated, prolong the eeprom life
     {
       Serial1.println("Write to EEPROM");
       EEPROM.put(LVD_LOW_BTS_ADDR, voltageAlarm.btsLowVoltage);
@@ -215,7 +392,7 @@ void canHandler(CAN_msg_t msg)
     // }
 
     CAN_msg_t response;
-    response.id = (frameId & 0x0000FFFF) + ((frameId & 0x00FF0000) << 8) + ((frameId & 0xFF000000) >> 8);
+    response.id = (frameId & 0x0000FFFF) + ((frameId & 0x00FF0000) << 8) + ((frameId & 0xFF000000) >> 8); //create response
     Serial1.print("Response Id : ");
     Serial1.println(response.id, HEX);
     response.format = CAN_FORMAT::EXTENDED_FORMAT;
@@ -233,8 +410,8 @@ void canHandler(CAN_msg_t msg)
     Serial1.println("Write lvd reconnect config");
     voltageAlarm.vsatReconnectVoltage = (msg.data[1] << 8) + msg.data[0];
     uint16_t temp;
-    EEPROM.get(LVD_RECONNECT_VSAT_ADDR, temp);
-    if(temp != voltageAlarm.vsatReconnectVoltage)
+    EEPROM.get(LVD_RECONNECT_VSAT_ADDR, temp);  //get the value from eeprom
+    if(temp != voltageAlarm.vsatReconnectVoltage) //check if the value is same, eeprom doesn't need to be updated, prolong the eeprom life
     {
       Serial1.println("Write to EEPROM");
       EEPROM.put(LVD_RECONNECT_VSAT_ADDR, voltageAlarm.vsatReconnectVoltage);
@@ -245,8 +422,8 @@ void canHandler(CAN_msg_t msg)
     }
 
     voltageAlarm.otherReconnectVoltage = (msg.data[3] << 8) + msg.data[2];
-    EEPROM.get(LVD_RECONNECT_OTHER_ADDR, temp);
-    if(temp != voltageAlarm.otherReconnectVoltage)
+    EEPROM.get(LVD_RECONNECT_OTHER_ADDR, temp); //get the value from eeprom
+    if(temp != voltageAlarm.otherReconnectVoltage)  //check if the value is same, eeprom doesn't need to be updated, prolong the eeprom life
     {
       Serial1.println("Write to EEPROM");
       EEPROM.put(LVD_RECONNECT_OTHER_ADDR, voltageAlarm.otherReconnectVoltage);
@@ -257,8 +434,8 @@ void canHandler(CAN_msg_t msg)
     }
 
     voltageAlarm.btsReconnectVoltage = (msg.data[5] << 8) + msg.data[4];
-    EEPROM.get(LVD_RECONNECT_BTS_ADDR, temp);
-    if(temp != voltageAlarm.btsReconnectVoltage)
+    EEPROM.get(LVD_RECONNECT_BTS_ADDR, temp); //get the value from eeprom
+    if(temp != voltageAlarm.btsReconnectVoltage)  //check if the value is same, eeprom doesn't need to be updated, prolong the eeprom life
     {
       Serial1.println("Write to EEPROM");
       EEPROM.put(LVD_RECONNECT_BTS_ADDR, voltageAlarm.btsReconnectVoltage);
@@ -287,8 +464,8 @@ void canHandler(CAN_msg_t msg)
     Serial1.println("Write system config");
     voltageAlarm.nominalBattery = (msg.data[1] << 8) + msg.data[0];
     uint16_t temp;
-    EEPROM.get(NOMINAL_BAT_ADDR, temp);
-    if(temp != voltageAlarm.nominalBattery)
+    EEPROM.get(NOMINAL_BAT_ADDR, temp); //get the value from eeprom
+    if(temp != voltageAlarm.nominalBattery) //check if the value is same, eeprom doesn't need to be updated, prolong the eeprom life
     {
       Serial1.println("Write to EEPROM");
       EEPROM.put(NOMINAL_BAT_ADDR, voltageAlarm.nominalBattery);
@@ -381,7 +558,7 @@ void canHandler(CAN_msg_t msg)
     //   break;
     // }
     CAN_msg_t response;
-    response.id = (frameId & 0x0000FFFF) + ((frameId & 0x00FF0000) << 8) + ((frameId & 0xFF000000) >> 8);
+    response.id = (frameId & 0x0000FFFF) + ((frameId & 0x00FF0000) << 8) + ((frameId & 0xFF000000) >> 8); //create response
     Serial1.print("Response Id : ");
     Serial1.println(response.id, HEX);
     response.format = CAN_FORMAT::EXTENDED_FORMAT;
@@ -452,6 +629,9 @@ void otherOFF()
   // digitalWrite(OFF3, LOW);
 }
 
+/**
+ * @brief task to handle relay
+*/
 static void relayTask(void *arg)
 {
   bool btsOn = true;
@@ -476,7 +656,7 @@ static void relayTask(void *arg)
     // Serial1.println("Relay Task");
     while(isFirstRun)
     {
-      if((millis() - previousTime) > 10000 || isDataReady)
+      if((millis() - previousTime) > 20 || isDataReady)  //wait for data of the can bus, preventing the relay to trigger prematurely, timeout 10s
       // if(isDataReady)
       {
         isFirstRun = false;
@@ -510,11 +690,11 @@ static void relayTask(void *arg)
     // averageCurrent = totalCurrent;
     // averageSoc = totalSoc / detectedBattery;
 
-    packData.calculate();
+    packData.calculate(); //calculate the voltage, current, soc, mosfet, temp and battery count
     averageVoltage = packData.getAverageVoltage();
     // Serial1.println("AVERAGE VOLTAGE : " + String(averageVoltage));
 
-    if(timeToShow > 5)
+    if(timeToShow > 5)  //print the data
     {
       // packData.printInfo();
       // Serial1.println("Detected Battery : " + String(detectedBattery));
@@ -539,6 +719,12 @@ static void relayTask(void *arg)
       timeToShow = 0;
     }
     
+    /**
+     * @brief code to detect whether the keepalive frame received periodically
+     *        @note everytime keepalive frame received, the counter will be increased by 1. With detecting the change of this counter,
+     *              lost connection can be detected. when this counter doesnt't get update for certain amount of time, indicate that
+     *              the lost connection happened. The chip will take control with its pre-set parameter value by changing the override flag to false
+    */
     if (keepAliveCounter.lastCnt != keepAliveCounter.cnt)
     {
       keepAliveCounter.lastCnt = keepAliveCounter.cnt;
@@ -548,7 +734,7 @@ static void relayTask(void *arg)
       lostConnectionCounter++;
     }
     
-    if(lostConnectionCounter > 50)
+    if(lostConnectionCounter > 50)  //time to take control 50 * 200ms = 10s
     {
       Serial1.println("lost connection from Ehub");
       isOverriden = false;
@@ -572,10 +758,7 @@ static void relayTask(void *arg)
       }
 
       /**
-       * @brief this check state of vsat, if this should be on, then it check for relay feedback, if it's still not connected,
-       *        re - trigger relay again
-       * @details when vsat should be off, it will check the feedback, if it's still connected, re - trigger relay again. the state
-       *          will get flipped when the voltage reach voltage alarm + tolerance
+       * @brief check for pack voltage and control relay, re-trigger relay every 200ms
       */
       if (vsatOn) //if vsat relay should be on
       {
@@ -598,8 +781,8 @@ static void relayTask(void *arg)
           ehubRelay.vsat = false;
           vsatOFF();
         // }
-        if(averageVoltage >= voltageAlarm.getVsatUpperThreshold())
-        // if(averageVoltage >= voltageAlarm.vsatReconnectVoltage)
+        // if(averageVoltage >= voltageAlarm.getVsatUpperThreshold())
+        if(averageVoltage >= voltageAlarm.vsatReconnectVoltage)
         {
           vsatOn = true;
         }      
@@ -656,8 +839,8 @@ static void relayTask(void *arg)
           ehubRelay.other = false;
           otherOFF();
         // }
-        if(averageVoltage >= voltageAlarm.getOtherUpperThreshold())
-        // if(averageVoltage >= voltageAlarm.otherReconnectVoltage)
+        // if(averageVoltage >= voltageAlarm.getOtherUpperThreshold())
+        if(averageVoltage >= voltageAlarm.otherReconnectVoltage)
         {
           otherOn = true;
         }
@@ -740,13 +923,17 @@ static void relayTask(void *arg)
   }
 }
 
-
+/**
+ * @brief task to handle can data send
+ *        @note this task also send a periodic wake up can data, energy meter data, cut off and reconnect parameter reporting
+*/
 static void canSenderTask(void *arg)
 {
   bool isOff = true;
   CAN_msg_t msg;
   int idInc = 0;
-  int paramId = 1;
+  int paramId = 4;
+  
   // int totalId = sizeof(batteryData) / sizeof(batteryData[0]);
   // Serial.println("Total size = " + String(totalId));
   while(1)
@@ -766,6 +953,9 @@ static void canSenderTask(void *arg)
       //   idInc = 0;
       // }
 
+      /**
+       * @brief this method will send a wake up command based on id
+      */
       if (idInc < packData.stack.size())
       {
         BatteryData temp = packData.getData(idInc);
@@ -863,7 +1053,7 @@ static void canSenderTask(void *arg)
           txBuff.data[6] = 0x01;
           txBuff.data[7] = 0x01;
           can.send(&txBuff);
-          paramId = 1;
+          paramId = 4;
           idInc = 0;
           break;
         default:
@@ -910,6 +1100,9 @@ static void canSenderTask(void *arg)
   }
 }
 
+/**
+ * @brief task to calculate the energy meter
+*/
 void ina3221Task()
 {
   int limitUnderAmpere = 0.2;
@@ -1021,7 +1214,7 @@ void setup() {
   //   &ina3221TaskHandle);
 
   // relayTaskQueue = xQueueCreate(5, sizeof(uint8_t));
-  canSenderTaskQueue = xQueueCreate(10, sizeof(CAN_msg_t));
+  canSenderTaskQueue = xQueueCreate(64, sizeof(CAN_msg_t));
 
   ina3221b.begin();
   ina3221b.reset();
@@ -1135,6 +1328,7 @@ void setup() {
     }
   };
   bool result = can.filter(filterConfig);
+  // bool result = false;
   if(result)
   {
     Serial1.println("Success set filter");
@@ -1143,7 +1337,8 @@ void setup() {
   {
     Serial1.println("Failed to set filter");
   }
-  for (size_t i = 1; i <= 64; i++)
+  
+  for (size_t i = 1; i <= 64; i++)  //wake the battery
   {
     CAN_msg_t msg;
     msg.id = WAKE_ADDR + (i << 8);
@@ -1161,7 +1356,7 @@ void setup() {
     can.send(&msg);
     delay(20);
   }  
-  vTaskStartScheduler();
+  vTaskStartScheduler();  //start the task
 }
 
 void loop() {
@@ -1188,10 +1383,13 @@ void loop() {
     //     }
     //   }
     // }
-    packData.removeUnusedData();
+    packData.removeUnusedData();  //remove unused data
     lastCheckTime = millis();
   }
 
+  /**
+   * @brief push the energy meter can data into canSender task
+  */
   if (millis() - lastTime > 1000)
   {
     ina3221Task();
@@ -1215,7 +1413,7 @@ void loop() {
     msg.format = CAN_FORMAT::EXTENDED_FORMAT;
     msg.type = CAN_FRAME::DATA_FRAME;
     msg.len = 8;
-    msg.data[0] = 1;
+    msg.data[0] = SOFTWARE_VERSION;
     msg.data[1] = additionalCanData.relayState.val; // for relay contact on or off
     msg.data[2] = current1bit1;
     msg.data[3] = current1bit2;
@@ -1225,7 +1423,6 @@ void loop() {
     msg.data[7] = current3bit2;
     xQueueSend(canSenderTaskQueue, &msg, portMAX_DELAY);
   }
-
 }
 
 // put function definitions here:

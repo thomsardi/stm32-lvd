@@ -1,8 +1,8 @@
 #include <Pack.h>
 
 /**
- * @brief   class constructor, take an array as storage of batterydata
- *          @note   this method take an array with fixed size to declare its class vector
+ * @brief   class constructor, takes an array as storage of batterydata
+ *          @note   this method take an array with fixed size to declare its class vector, preventing the dynamic allocation
  * @param   batteryData an array of BatteryData data type, this array is a storage for vector
  * @param   maxSize define the max size of the storage array
  * @param   size    the actual position index of the vector, default 0 because the vector still empty
@@ -156,7 +156,7 @@ void Pack::removeUnusedData()
 /**
  * @brief   get data with contained id
  * @param   id  id of the data
- * @return  BatteryData refer to DataDef.h for the struct member
+ * @return  BatteryData refer to DataDef.h for the struct member, return default BatteryData if not found
 */
 BatteryData Pack::getData(const int index)
 {
@@ -204,6 +204,7 @@ void Pack::calculate()
 
 /**
  * @brief   get an average voltage of battery
+ *          @note   call the calculate() method before using this method to ensure that the data is properly updated
  * @return  average voltage
 */
 int32_t Pack::getAverageVoltage() {
@@ -212,6 +213,7 @@ int32_t Pack::getAverageVoltage() {
 
 /**
  * @brief   get an total current of battery
+ *          @note   call the calculate() method before using this method to ensure that the data is properly updated
  * @return  total current
 */
 int Pack::getTotalCurrent() {
@@ -220,6 +222,7 @@ int Pack::getTotalCurrent() {
 
 /**
  * @brief   get an average SoC of battery
+ *          @note   call the calculate() method before using this method to ensure that the data is properly updated
  * @return  average SoC
 */
 int Pack::getAverageSoc() {
@@ -228,6 +231,7 @@ int Pack::getAverageSoc() {
 
 /**
  * @brief   get total battery
+ *          @note   call the calculate() method before using this method to ensure that the data is properly updated
  * @return  total battery
 */
 uint8_t Pack::getTotalBattery() {
@@ -236,6 +240,7 @@ uint8_t Pack::getTotalBattery() {
 
 /**
  * @brief   get a total active battery
+ *          @note   call the calculate() method before using this method to ensure that the data is properly updated
  * @return  total active battery
 */
 uint8_t Pack::getActiveBattery() {
@@ -244,6 +249,7 @@ uint8_t Pack::getActiveBattery() {
 
 /**
  * @brief   get an inactive battery
+*           @note   call the calculate() method before using this method to ensure that the data is properly updated
  * @return  total inactive battery
 */
 uint8_t Pack::getInactiveBattery() {

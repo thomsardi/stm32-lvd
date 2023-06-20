@@ -155,6 +155,11 @@ void BatteryProcessing::updateMosfetStatus(uint8_t data, BatteryData &batteryDat
     }
 }
 
+/**
+ * @brief   method to update status of the HalfMosfetData struct
+ * @param   data    can msg data
+ * @param   halfMosfetData  HalfMosfetData struct data
+*/
 void BatteryProcessing::updateMosfetStatus(uint8_t data, HalfMosfetData &halfMosfetData)
 {
     switch (data)

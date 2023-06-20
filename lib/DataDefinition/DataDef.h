@@ -4,8 +4,10 @@
 #include <Arduino.h>
 #include <Vector.h>
 
+/**
+ * @brief   struct that contain the collection of pack data and mosfet data
+*/
 struct BatteryData {
-    
     union MosfetStatus 
     {
         struct
@@ -82,10 +84,11 @@ struct BatteryData {
     void incMosfetCounter() {
         cnt.mosfetUpdatedCounter++;
     }
-
-
 };
 
+/**
+ * @brief   struct to store pack data CAN message
+*/
 struct HalfPackData {
     uint8_t id;
     bool isUpdated;
@@ -96,6 +99,9 @@ struct HalfPackData {
     uint16_t packUpdatedCounter;
 };
 
+/**
+ * @brief   struct to store mosfet and temperature data CAN message
+*/
 struct HalfMosfetData {
     union MosfetStatus 
     {
@@ -126,6 +132,9 @@ struct HalfMosfetData {
 
 };
 
+/**
+ * @brief   alarm parameter for cut off voltage and reconnect voltage
+*/
 struct AlarmParameter
 {
     uint16_t vsatLowVoltage = 4600;   //in 0.1V
@@ -209,17 +218,39 @@ enum BaseAddress {
     VCELL_9_12_ADDR = 0x760c864,
     VCELL_13_15_ADDR = 0x75fc864,
     MAX_MIN_PARAM_ADDR = 0x75ec864,
-    WAKE_ADDR = 0x12640066
+    WAKE_ADDR = 0x12640066,
 };
 
+/**
+ * @brief   list of frame id
+*/
 enum PeriodicAddress {
     INA3221_ADDR = 0x1D40C8E7,
     LOW_VOLTAGE_PARAM_ADDR = 0x1D40C8E8,
     RECONNECT_VOLTAGE_PARAM_ADDR = 0x1D40C8E9,
     WAKE_ADDR_SET1 = 0x1264FE53,
     WAKE_ADDR_SET2 = 0x1263FE53,
-    WAKE_ADDR_SET3 = 0x1262FE53
+    WAKE_ADDR_SET3 = 0x1262FE53,
+    CMOS_DMOS_CONTROL_ADDR_1 = 0x19A10066,
+    CMOS_DMOS_CONTROL_ADDR_2 = 0x19A1FF53,
+    CMOS_DMOS_CONTROL_ADDR_3 = 0x12A40066,
+    CMOS_DMOS_CONTROL_ADDR_4 = 0x12A4FF53
 
+};
+
+enum MosfetType {
+    CHARGE_MOSFET_TYPE = 0xEB,
+    DISCHARGE_MOSFET_TYPE = 0xEA
+};
+
+enum MosfetSelector {
+    CHARGE_MOSFET_SELECTOR = 0x64,
+    DISCHARGE_MOSFET_SELECTOR = 0x63
+};
+
+enum MosfetState {
+    ON_STATE = 0x0F,
+    OFF_STATE = 0xBA
 };
 
 #endif
