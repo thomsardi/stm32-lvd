@@ -25,7 +25,7 @@ struct BatteryData {
         int mid;
         int bot;
         int cmosTemp;
-        int dmosTemp;  
+        int dmosTemp; 
     };
 
     struct UpdatedCounter
@@ -46,6 +46,8 @@ struct BatteryData {
     int packCurrent;
     int packSoc;
     bool isUpdated;
+    bool isCmosOverTemperature;
+    bool isDmosOverTemperature;
 
     int16_t getPackCounter()
     {
@@ -121,10 +123,13 @@ struct HalfMosfetData {
         int bot;
         int cmosTemp;
         int dmosTemp;  
+        
     };
 
     uint8_t id;
     bool isUpdated;
+    bool isCmosOverTemperature;
+    bool isDmosOverTemperature;
     MosfetStatus mosfetStatus;
     Temperature temperature;
     uint16_t previousMosfetCounter;

@@ -12,7 +12,9 @@ class Pack {
         Vector<BatteryData> stack;
         void insert(const HalfPackData &data);
         void insert(const HalfMosfetData &data);
-        BatteryData getData(const int id);
+        BatteryData getDataByIndex(const int index);
+        BatteryData getDataById(const int id);
+        void getDataById(const int id, BatteryData &batData);
         void remove(const int id);
         void calculate();
         void removeUnusedData();

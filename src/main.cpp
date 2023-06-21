@@ -89,9 +89,13 @@ void canHandler(CAN_msg_t msg)
   uint32_t frameId = msg.id;
   HalfPackData halfPackData;
   HalfMosfetData halfMosfetData;
+  BatteryData batData;
   int length = msg.len;
   int index = 0;
   int baseAddr = 0;
+  bool isCmosOverTemperature = false;
+  bool isDmosOverTemperature = false;
+  CAN_msg_t txBuff;
   // Serial1.print("Frame Addr : ");
   // Serial1.println(frameId, HEX);
   // Serial1.print("Data : ");
@@ -149,19 +153,72 @@ void canHandler(CAN_msg_t msg)
     halfMosfetData.temperature.cmosTemp = batProc.getTemperature(msg,6, 1);
     halfMosfetData.temperature.dmosTemp = batProc.getTemperature(msg,7, 1);
 
-    CAN_msg_t txBuff;
+    packData.getDataById(index, batData);
+    if (batData.id == 0)
+    {
+      // Serial1.println("Not Found");
+      packData.insert(halfMosfetData);
+      break;
+    }
+    // Serial1.println("Id : " + String(batData.id));
+    isCmosOverTemperature = batData.isCmosOverTemperature;
+    isDmosOverTemperature = batData.isDmosOverTemperature;
+    // Serial1.println("Cmos Temperature : " + String(halfMosfetData.temperature.cmosTemp));
+    // Serial1.println("Dmos Temperature : " + String(halfMosfetData.temperature.dmosTemp));
+    //set the over temperature flag when temperature above 50
+    if(halfMosfetData.temperature.dmosTemp > 50)
+    {
+      // Serial1.println("Id : " + String(index));
+      // Serial1.println("Dmos Overtemperature");
+      isDmosOverTemperature = true;
+      halfMosfetData.isDmosOverTemperature = isDmosOverTemperature;
+    }
+
+    //set the over temperature flag when temperature above 50
+    if(halfMosfetData.temperature.cmosTemp > 50)
+    {
+      // Serial1.println("Id : " + String(index));
+      // Serial1.println("Cmos Overtemperature");
+      isCmosOverTemperature = true;
+      halfMosfetData.isCmosOverTemperature = isCmosOverTemperature;
+    }
     
-    if (halfMosfetData.temperature.dmosTemp < 50)
+    //if over temperature flag triggerred, reset flag when it is already below 45
+    if (isDmosOverTemperature)
+    {
+      if (halfMosfetData.temperature.dmosTemp <= 45)
+      {
+        // Serial1.println("Id : " + String(index));
+        // Serial1.println("Dmos Overtemperature Reset");
+        isDmosOverTemperature = false;
+        halfMosfetData.isDmosOverTemperature = isDmosOverTemperature;
+      }
+    }
+
+    //if over temperature flag triggerred, reset flag when it is already below 45
+    if (isCmosOverTemperature)
+    {
+      if (halfMosfetData.temperature.cmosTemp <= 45)
+      {
+        // Serial1.println("Id : " + String(index));
+        // Serial1.println("Cmos Overtemperature Reset");
+        isCmosOverTemperature = false;
+        halfMosfetData.isCmosOverTemperature = isCmosOverTemperature;
+      }
+    }
+
+    //if it is not over temperature && not overriden
+    if (!isDmosOverTemperature && !isOverriden)
     {
       /* code */
       // Serial1.println("ID : " + String(index));
-      // Serial1.println("Dmos temperature normal");
+      // Serial1.println("Dmos force on");
       if (!halfMosfetData.mosfetStatus.dmos)
       { 
         // Serial1.println("Dmos Off");
         /**
          * @brief Force dmos on when the received dmos status is off
-         *        @note 4 frame data need to be sent in order to activate dmos, the frame data pushed into queue
+         *        @note 2 frame data need to be sent in order to activate dmos, the frame data pushed into queue
          *              to be later handled by canSenderTask
         */
         //First frame data
@@ -178,22 +235,6 @@ void canHandler(CAN_msg_t msg)
         txBuff.data[6] = 0x63;
         txBuff.data[7] = 0x64;
         xQueueSend(canSenderTaskQueue, &txBuff, 0);
-        // canTxBuffer.push_back(txBuff);
-
-        //Second frame data
-        // txBuff.id = CMOS_DMOS_CONTROL_ADDR_2 - (index << 8);
-        // txBuff.format = CAN_FORMAT::EXTENDED_FORMAT;
-        // txBuff.type = CAN_FRAME::DATA_FRAME;
-        // txBuff.len = 3;
-        // txBuff.data[0] = MosfetType::DISCHARGE_MOSFET_TYPE; //mosfet type for discharge
-        // txBuff.data[1] = 0x64;
-        // txBuff.data[2] = 0x64;
-        // txBuff.data[3] = 0x64;  //don't care
-        // txBuff.data[4] = 0x64;  //don't care
-        // txBuff.data[5] = 0x64;  //don't care
-        // txBuff.data[6] = 0x63;  //don't care
-        // txBuff.data[7] = 0x64;  //don't care
-        // canTxBuffer.push_back(txBuff);
 
         //Third frame data  
         txBuff.id = CMOS_DMOS_CONTROL_ADDR_3 + (index << 8);
@@ -202,29 +243,13 @@ void canHandler(CAN_msg_t msg)
         txBuff.len = 6;
         txBuff.data[0] = MosfetType::DISCHARGE_MOSFET_TYPE; //mosfet type for discharge
         txBuff.data[1] = 0x64;
-        txBuff.data[2] = MosfetState::ON_STATE;
+        txBuff.data[2] = MosfetState::ON_STATE; //mosfet state. on_state = open = connected, off_state = close = disconnected
         txBuff.data[3] = 0x64;  
         txBuff.data[4] = 0x64;  
         txBuff.data[5] = 0x64;  
         txBuff.data[6] = 0x63;  //don't care
         txBuff.data[7] = 0x64;  //don't care
-        xQueueSend(canSenderTaskQueue, &txBuff, 0);
-        // canTxBuffer.push_back(txBuff);
-
-        //Fourth frame data  
-        // txBuff.id = CMOS_DMOS_CONTROL_ADDR_4 - (index << 8);
-        // txBuff.format = CAN_FORMAT::EXTENDED_FORMAT;
-        // txBuff.type = CAN_FRAME::DATA_FRAME;
-        // txBuff.len = 3;
-        // txBuff.data[0] = MosfetType::DISCHARGE_MOSFET_TYPE; //mosfet type for discharge
-        // txBuff.data[1] = 0x64;
-        // txBuff.data[2] = 0x64;
-        // txBuff.data[3] = 0x64;  //don't care
-        // txBuff.data[4] = 0x64;  //don't care
-        // txBuff.data[5] = 0x64;  //don't care
-        // txBuff.data[6] = 0x63;  //don't care
-        // txBuff.data[7] = 0x64;  //don't care
-        // canTxBuffer.push_back(txBuff);      
+        xQueueSend(canSenderTaskQueue, &txBuff, 0);     
       }
     }
     else
@@ -233,17 +258,18 @@ void canHandler(CAN_msg_t msg)
       // Serial1.println("Dmos temperature abnormal");
     }
     
-    if (halfMosfetData.temperature.cmosTemp < 50)
+    //if it is not over temperature && not overriden
+    if (!isCmosOverTemperature && !isOverriden)
     {
       /* code */
       // Serial1.println("ID : " + String(index));
-      // Serial1.println("Cmos temperature normal");
+      // Serial1.println("Cmos force on");
       if (!halfMosfetData.mosfetStatus.cmos)
       { 
         // Serial1.println("Cmos Off");
         /**
          * @brief Force cmos on when the received cmos status is off
-         *        @note 4 frame data need to be sent in order to activate cmos, the frame data pushed into queue
+         *        @note 2 frame data need to be sent in order to activate cmos, the frame data pushed into queue
          *              to be later handled by canSenderTask
         */
         //First frame data
@@ -261,21 +287,6 @@ void canHandler(CAN_msg_t msg)
         txBuff.data[7] = 0x64;
         xQueueSend(canSenderTaskQueue, &txBuff, 0);
 
-        //Second frame data
-        // txBuff.id = CMOS_DMOS_CONTROL_ADDR_2 - (index << 8);
-        // txBuff.format = CAN_FORMAT::EXTENDED_FORMAT;
-        // txBuff.type = CAN_FRAME::DATA_FRAME;
-        // txBuff.len = 3;
-        // txBuff.data[0] = MosfetType::CHARGE_MOSFET_TYPE; //mosfet type for charge
-        // txBuff.data[1] = 0x64;
-        // txBuff.data[2] = 0x64;
-        // txBuff.data[3] = 0x64;  //don't care
-        // txBuff.data[4] = 0x64;  //don't care
-        // txBuff.data[5] = 0x64;  //don't care
-        // txBuff.data[6] = 0x63;  //don't care
-        // txBuff.data[7] = 0x64;  //don't care
-        // xQueueSend(canSenderTaskQueue, &txBuff, 0);  
-
         //Third frame data  
         txBuff.id = CMOS_DMOS_CONTROL_ADDR_3 + (index << 8);
         txBuff.format = CAN_FORMAT::EXTENDED_FORMAT;
@@ -283,7 +294,7 @@ void canHandler(CAN_msg_t msg)
         txBuff.len = 6;
         txBuff.data[0] = MosfetType::CHARGE_MOSFET_TYPE; //mosfet type for charge
         txBuff.data[1] = 0x64;
-        txBuff.data[2] = MosfetState::ON_STATE;
+        txBuff.data[2] = MosfetState::ON_STATE; //mosfet state. on_state = open = connected, off_state = close = disconnected
         txBuff.data[3] = 0x64;  
         txBuff.data[4] = 0x64;  
         txBuff.data[5] = 0x64;  
@@ -291,20 +302,6 @@ void canHandler(CAN_msg_t msg)
         txBuff.data[7] = 0x64;  //don't care
         xQueueSend(canSenderTaskQueue, &txBuff, 0);
 
-        //Fourth frame data  
-        // txBuff.id = CMOS_DMOS_CONTROL_ADDR_4 - (index << 8);
-        // txBuff.format = CAN_FORMAT::EXTENDED_FORMAT;
-        // txBuff.type = CAN_FRAME::DATA_FRAME;
-        // txBuff.len = 3;
-        // txBuff.data[0] = MosfetType::CHARGE_MOSFET_TYPE; //mosfet type for charge
-        // txBuff.data[1] = 0x64;
-        // txBuff.data[2] = 0x64;
-        // txBuff.data[3] = 0x64;  //don't care
-        // txBuff.data[4] = 0x64;  //don't care
-        // txBuff.data[5] = 0x64;  //don't care
-        // txBuff.data[6] = 0x63;  //don't care
-        // txBuff.data[7] = 0x64;  //don't care
-        // xQueueSend(canSenderTaskQueue, &txBuff, 0);
       }
     }
     else
@@ -315,23 +312,6 @@ void canHandler(CAN_msg_t msg)
     
     packData.insert(halfMosfetData);
 
-    // batteryData[index - 1].id = index;
-    // batteryData[index - 1].isUpdated = 1;    
-    // batProc.updateMosfetStatus(msg.data[0], batteryData[index-1]);
-    // batteryData[index - 1].temperature.top = batProc.getTemperature(msg,3, 1);
-    // batteryData[index - 1].temperature.mid = batProc.getTemperature(msg,4, 1);
-    // batteryData[index - 1].temperature.bot = batProc.getTemperature(msg,5, 1);
-    // batteryData[index - 1].temperature.cmosTemp = batProc.getTemperature(msg,6, 1);
-    // batteryData[index - 1].temperature.dmosTemp = batProc.getTemperature(msg,7, 1);
-    // batteryData[index - 1].incMosfetCounter();
-    // Serial1.println("Id : " + String(index - 1));
-    // Serial1.println("Mosfet Status : " + String(batteryData[index - 1].mosfetStatus.val));
-    // Serial1.println("Temperature Top : " + String(batteryData[index - 1].temperature.top));
-    // Serial1.println("Temperature Mid : " + String(batteryData[index - 1].temperature.mid));
-    // Serial1.println("Temperature Bot : " + String(batteryData[index - 1].temperature.bot));
-    // Serial1.println("Temperature Cmos : " + String(batteryData[index - 1].temperature.cmosTemp));
-    // Serial1.println("Temperature Dmos : " + String(batteryData[index - 1].temperature.dmosTemp));
-    // return;
     break;
 
   default:
@@ -347,36 +327,36 @@ void canHandler(CAN_msg_t msg)
     EEPROM.get(LVD_LOW_VSAT_ADDR, temp);  //get the value from eeprom
     if(temp != voltageAlarm.vsatLowVoltage) //check if the value is same, eeprom doesn't need to be updated, prolong the eeprom life
     {
-      Serial1.println("Write to EEPROM");
+      // Serial1.println("Write to EEPROM");
       EEPROM.put(LVD_LOW_VSAT_ADDR, voltageAlarm.vsatLowVoltage);
     }
     else
     {
-      Serial1.println("Same data");
+      // Serial1.println("Same data");
     }
 
     voltageAlarm.otherLowVoltage = (msg.data[3] << 8) + msg.data[2];
     EEPROM.get(LVD_LOW_OTHER_ADDR, temp); //get the value from eeprom
     if(temp != voltageAlarm.otherLowVoltage)  //check if the value is same, eeprom doesn't need to be updated, prolong the eeprom life
     {
-      Serial1.println("Write to EEPROM");
+      // Serial1.println("Write to EEPROM");
       EEPROM.put(LVD_LOW_OTHER_ADDR, voltageAlarm.otherLowVoltage);
     }
     else
     {
-      Serial1.println("Same data");
+      // Serial1.println("Same data");
     }
 
     voltageAlarm.btsLowVoltage = (msg.data[5] << 8) + msg.data[4];
     EEPROM.get(LVD_LOW_BTS_ADDR, temp); //get the value from eeprom
     if(temp != voltageAlarm.btsLowVoltage)  //check if the value is same, eeprom doesn't need to be updated, prolong the eeprom life
     {
-      Serial1.println("Write to EEPROM");
+      // Serial1.println("Write to EEPROM");
       EEPROM.put(LVD_LOW_BTS_ADDR, voltageAlarm.btsLowVoltage);
     }
     else
     {
-      Serial1.println("Same data");
+      // Serial1.println("Same data");
     }
 
     // voltageAlarm.tolerance = (msg.data[7] << 8) + msg.data[6];
@@ -393,8 +373,8 @@ void canHandler(CAN_msg_t msg)
 
     CAN_msg_t response;
     response.id = (frameId & 0x0000FFFF) + ((frameId & 0x00FF0000) << 8) + ((frameId & 0xFF000000) >> 8); //create response
-    Serial1.print("Response Id : ");
-    Serial1.println(response.id, HEX);
+    // Serial1.print("Response Id : ");
+    // Serial1.println(response.id, HEX);
     response.format = CAN_FORMAT::EXTENDED_FORMAT;
     response.type = CAN_FRAME::DATA_FRAME;
     response.len = msg.len;
@@ -407,48 +387,48 @@ void canHandler(CAN_msg_t msg)
 
   if (frameId == 0x1D41C8E5) //ehub write lvd reconnect config
   {
-    Serial1.println("Write lvd reconnect config");
+    // Serial1.println("Write lvd reconnect config");
     voltageAlarm.vsatReconnectVoltage = (msg.data[1] << 8) + msg.data[0];
     uint16_t temp;
     EEPROM.get(LVD_RECONNECT_VSAT_ADDR, temp);  //get the value from eeprom
     if(temp != voltageAlarm.vsatReconnectVoltage) //check if the value is same, eeprom doesn't need to be updated, prolong the eeprom life
     {
-      Serial1.println("Write to EEPROM");
+      // Serial1.println("Write to EEPROM");
       EEPROM.put(LVD_RECONNECT_VSAT_ADDR, voltageAlarm.vsatReconnectVoltage);
     }
     else
     {
-      Serial1.println("Same data");
+      // Serial1.println("Same data");
     }
 
     voltageAlarm.otherReconnectVoltage = (msg.data[3] << 8) + msg.data[2];
     EEPROM.get(LVD_RECONNECT_OTHER_ADDR, temp); //get the value from eeprom
     if(temp != voltageAlarm.otherReconnectVoltage)  //check if the value is same, eeprom doesn't need to be updated, prolong the eeprom life
     {
-      Serial1.println("Write to EEPROM");
+      // Serial1.println("Write to EEPROM");
       EEPROM.put(LVD_RECONNECT_OTHER_ADDR, voltageAlarm.otherReconnectVoltage);
     }
     else
     {
-      Serial1.println("Same data");
+      // Serial1.println("Same data");
     }
 
     voltageAlarm.btsReconnectVoltage = (msg.data[5] << 8) + msg.data[4];
     EEPROM.get(LVD_RECONNECT_BTS_ADDR, temp); //get the value from eeprom
     if(temp != voltageAlarm.btsReconnectVoltage)  //check if the value is same, eeprom doesn't need to be updated, prolong the eeprom life
     {
-      Serial1.println("Write to EEPROM");
+      // Serial1.println("Write to EEPROM");
       EEPROM.put(LVD_RECONNECT_BTS_ADDR, voltageAlarm.btsReconnectVoltage);
     }
     else
     {
-      Serial1.println("Same data");
+      // Serial1.println("Same data");
     }
 
     CAN_msg_t response;
     response.id = (frameId & 0x0000FFFF) + ((frameId & 0x00FF0000) << 8) + ((frameId & 0xFF000000) >> 8);
-    Serial1.print("Response Id : ");
-    Serial1.println(response.id, HEX);
+    // Serial1.print("Response Id : ");
+    // Serial1.println(response.id, HEX);
     response.format = CAN_FORMAT::EXTENDED_FORMAT;
     response.type = CAN_FRAME::DATA_FRAME;
     response.len = msg.len;
@@ -461,23 +441,23 @@ void canHandler(CAN_msg_t msg)
 
   if(frameId == 0x1D41C8E4) //ehub write system config
   {
-    Serial1.println("Write system config");
+    // Serial1.println("Write system config");
     voltageAlarm.nominalBattery = (msg.data[1] << 8) + msg.data[0];
     uint16_t temp;
     EEPROM.get(NOMINAL_BAT_ADDR, temp); //get the value from eeprom
     if(temp != voltageAlarm.nominalBattery) //check if the value is same, eeprom doesn't need to be updated, prolong the eeprom life
     {
-      Serial1.println("Write to EEPROM");
+      // Serial1.println("Write to EEPROM");
       EEPROM.put(NOMINAL_BAT_ADDR, voltageAlarm.nominalBattery);
     }
     else
     {
-      Serial1.println("Same data");
+      // Serial1.println("Same data");
     }
     CAN_msg_t response;
     response.id = (frameId & 0x0000FFFF) + ((frameId & 0x00FF0000) << 8) + ((frameId & 0xFF000000) >> 8);
-    Serial1.print("Response Id : ");
-    Serial1.println(response.id, HEX);
+    // Serial1.print("Response Id : ");
+    // Serial1.println(response.id, HEX);
     response.format = CAN_FORMAT::EXTENDED_FORMAT;
     response.type = CAN_FRAME::DATA_FRAME;
     response.len = msg.len;
@@ -510,7 +490,7 @@ void canHandler(CAN_msg_t msg)
 
   if(frameId == 0x1D41C8E7) //ehub write relay
   {
-    Serial1.println("Ehub relay write");
+    // Serial1.println("Ehub relay write");
     switch (msg.data[0])
     {
     case 1:
@@ -559,8 +539,8 @@ void canHandler(CAN_msg_t msg)
     // }
     CAN_msg_t response;
     response.id = (frameId & 0x0000FFFF) + ((frameId & 0x00FF0000) << 8) + ((frameId & 0xFF000000) >> 8); //create response
-    Serial1.print("Response Id : ");
-    Serial1.println(response.id, HEX);
+    // Serial1.print("Response Id : ");
+    // Serial1.println(response.id, HEX);
     response.format = CAN_FORMAT::EXTENDED_FORMAT;
     response.type = CAN_FRAME::DATA_FRAME;
     response.len = msg.len;
@@ -958,7 +938,7 @@ static void canSenderTask(void *arg)
       */
       if (idInc < packData.stack.size())
       {
-        BatteryData temp = packData.getData(idInc);
+        BatteryData temp = packData.getDataByIndex(idInc);
         txBuff.id = WAKE_ADDR + (temp.id << 8);
         txBuff.format = CAN_FORMAT::EXTENDED_FORMAT;
         txBuff.type = CAN_FRAME::DATA_FRAME;

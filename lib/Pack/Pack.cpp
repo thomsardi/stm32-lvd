@@ -92,6 +92,8 @@ void Pack::insert(const HalfMosfetData &data)
             stack.at(i).temperature.bot = data.temperature.bot;
             stack.at(i).temperature.cmosTemp = data.temperature.cmosTemp;
             stack.at(i).temperature.dmosTemp = data.temperature.dmosTemp;
+            stack.at(i).isCmosOverTemperature = data.isCmosOverTemperature;
+            stack.at(i).isDmosOverTemperature = data.isDmosOverTemperature;
             stack.at(i).incMosfetCounter();
             return;
         }
@@ -109,6 +111,8 @@ void Pack::insert(const HalfMosfetData &data)
     dummy.temperature.bot = data.temperature.bot;
     dummy.temperature.cmosTemp = data.temperature.cmosTemp;
     dummy.temperature.dmosTemp = data.temperature.dmosTemp;
+    dummy.isCmosOverTemperature = data.isCmosOverTemperature;
+    dummy.isDmosOverTemperature = data.isDmosOverTemperature;
     dummy.incMosfetCounter();
     stack.push_back(dummy);
 }
@@ -154,11 +158,11 @@ void Pack::removeUnusedData()
 }
 
 /**
- * @brief   get data with contained id
- * @param   id  id of the data
+ * @brief   get data at stack index
+ * @param   index  index of stack
  * @return  BatteryData refer to DataDef.h for the struct member, return default BatteryData if not found
 */
-BatteryData Pack::getData(const int index)
+BatteryData Pack::getDataByIndex(const int index)
 {
     BatteryData data;
     data.id = 0;
@@ -168,6 +172,64 @@ BatteryData Pack::getData(const int index)
     }
     return stack.at(index);
 }
+
+/**
+ * @brief   get data with contained id
+ * @param   id  id to search
+ * @return  BatteryData refer to DataDef.h for the struct member, return default BatteryData if not found
+*/
+BatteryData Pack::getDataById(const int id)
+{
+    BatteryData data;
+    data.id = 0;
+    
+    for (size_t i = 0; i < stack.size(); i++)
+    {
+        if (stack.at(i).id == id)
+        {
+            return stack.at(i);
+        }
+    }
+    
+    return data;
+}
+
+
+/**
+ * @brief   get data with contained id
+ * @param   id  id to search
+ * @param   batData destination address
+*/
+void Pack::getDataById(const int id, BatteryData &batData)
+{
+    BatteryData data;
+    data.id = 0;
+    
+    for (size_t i = 0; i < stack.size(); i++)
+    {
+        if (stack.at(i).id == id)
+        {
+            batData.id = stack.at(i).id;
+            batData.packVoltage = stack.at(i).packVoltage;
+            batData.packCurrent = stack.at(i).packCurrent;
+            batData.packSoc = stack.at(i).packSoc;
+            batData.isUpdated = stack.at(i).isUpdated;
+            batData.isCmosOverTemperature = stack.at(i).isCmosOverTemperature;
+            batData.isDmosOverTemperature = stack.at(i).isDmosOverTemperature;
+            batData.mosfetStatus.val = stack.at(i).mosfetStatus.val;
+            batData.cnt.previousTemperatureUpdatedCounter = stack.at(i).cnt.previousTemperatureUpdatedCounter;
+            batData.cnt.temperatureUpdatedCounter = stack.at(i).cnt.temperatureUpdatedCounter;
+            batData.cnt.previousMosfetUpdatedCounter = stack.at(i).cnt.previousMosfetUpdatedCounter;
+            batData.cnt.mosfetUpdatedCounter = stack.at(i).cnt.mosfetUpdatedCounter;
+            batData.cnt.previousPackUpdatedCounter = stack.at(i).cnt.previousPackUpdatedCounter;
+            batData.cnt.packUpdatedCounter = stack.at(i).cnt.packUpdatedCounter;
+            return;
+        }
+    }
+    batData.id = 0;
+}
+
+            
 
 /**
  * @brief   calculate voltage, current, SoC, total, inactive and active of battery
