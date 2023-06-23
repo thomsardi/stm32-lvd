@@ -1,4 +1,4 @@
-<mxfile host="app.diagrams.net" modified="2023-06-22T06:30:23.860Z" agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36" etag="mmbslGRqoiX28fZsQOXC" version="21.3.2" type="github">
+<mxfile host="app.diagrams.net" modified="2023-06-23T04:06:58.172Z" agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36" etag="uHmivW21s1nl5jdyaR0s" version="21.5.0" type="github">
   <diagram id="C5RBs43oDa-KdzZeNtuy" name="Page-1">
     <mxGraphModel dx="1434" dy="796" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
       <root>
@@ -10,7 +10,7 @@
         <mxCell id="WIyWlLk6GJQsqaUBKTNV-3" value="Setup" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;glass=0;strokeWidth=1;shadow=0;" parent="WIyWlLk6GJQsqaUBKTNV-1" vertex="1">
           <mxGeometry x="354" y="100" width="120" height="40" as="geometry" />
         </mxCell>
-        <mxCell id="_cZhBR9zeCpMvIpinUDM-4" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" parent="WIyWlLk6GJQsqaUBKTNV-1" source="_cZhBR9zeCpMvIpinUDM-1" target="_cZhBR9zeCpMvIpinUDM-3" edge="1">
+        <mxCell id="R397QdPTaHsXT1_BaVMT-1" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="WIyWlLk6GJQsqaUBKTNV-1" source="_cZhBR9zeCpMvIpinUDM-1" target="R397QdPTaHsXT1_BaVMT-0">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
         <mxCell id="_cZhBR9zeCpMvIpinUDM-1" value="Initialize library, can filter, can bus, serial, ina3221 energy meter, eeprom and variable" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;glass=0;strokeWidth=1;shadow=0;" parent="WIyWlLk6GJQsqaUBKTNV-1" vertex="1">
@@ -26,7 +26,7 @@
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
         <mxCell id="_cZhBR9zeCpMvIpinUDM-3" value="Create can sender task &amp;amp; relay task" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;glass=0;strokeWidth=1;shadow=0;" parent="WIyWlLk6GJQsqaUBKTNV-1" vertex="1">
-          <mxGeometry x="324" y="400" width="180" height="70" as="geometry" />
+          <mxGeometry x="324" y="500" width="180" height="70" as="geometry" />
         </mxCell>
         <mxCell id="_cZhBR9zeCpMvIpinUDM-13" value="&lt;font style=&quot;font-size: 20px;&quot;&gt;Setup flowchart&lt;/font&gt;" style="text;html=1;align=center;verticalAlign=middle;resizable=0;points=[];autosize=1;strokeColor=none;fillColor=none;" parent="WIyWlLk6GJQsqaUBKTNV-1" vertex="1">
           <mxGeometry x="334" y="23" width="160" height="40" as="geometry" />
@@ -35,28 +35,34 @@
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
         <mxCell id="_cZhBR9zeCpMvIpinUDM-14" value="Start can sender task" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;glass=0;strokeWidth=1;shadow=0;" parent="WIyWlLk6GJQsqaUBKTNV-1" vertex="1">
-          <mxGeometry x="64" y="400" width="180" height="70" as="geometry" />
+          <mxGeometry x="64" y="500" width="180" height="70" as="geometry" />
         </mxCell>
         <mxCell id="_cZhBR9zeCpMvIpinUDM-25" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" parent="WIyWlLk6GJQsqaUBKTNV-1" source="_cZhBR9zeCpMvIpinUDM-16" target="_cZhBR9zeCpMvIpinUDM-24" edge="1">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
         <mxCell id="_cZhBR9zeCpMvIpinUDM-16" value="Start relay task" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;glass=0;strokeWidth=1;shadow=0;" parent="WIyWlLk6GJQsqaUBKTNV-1" vertex="1">
-          <mxGeometry x="584" y="400" width="180" height="70" as="geometry" />
+          <mxGeometry x="584" y="500" width="180" height="70" as="geometry" />
         </mxCell>
         <mxCell id="_cZhBR9zeCpMvIpinUDM-23" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" parent="WIyWlLk6GJQsqaUBKTNV-1" source="_cZhBR9zeCpMvIpinUDM-18" target="_cZhBR9zeCpMvIpinUDM-22" edge="1">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
         <mxCell id="_cZhBR9zeCpMvIpinUDM-18" value="Execute main loop" style="rounded=1;whiteSpace=wrap;html=1;fontSize=12;glass=0;strokeWidth=1;shadow=0;" parent="WIyWlLk6GJQsqaUBKTNV-1" vertex="1">
-          <mxGeometry x="324" y="550" width="180" height="70" as="geometry" />
+          <mxGeometry x="324" y="650" width="180" height="70" as="geometry" />
         </mxCell>
         <mxCell id="_cZhBR9zeCpMvIpinUDM-20" value="A" style="ellipse;whiteSpace=wrap;html=1;rounded=1;glass=0;strokeWidth=1;shadow=0;" parent="WIyWlLk6GJQsqaUBKTNV-1" vertex="1">
-          <mxGeometry x="114" y="545" width="80" height="80" as="geometry" />
+          <mxGeometry x="114" y="645" width="80" height="80" as="geometry" />
         </mxCell>
         <mxCell id="_cZhBR9zeCpMvIpinUDM-22" value="B" style="ellipse;whiteSpace=wrap;html=1;rounded=1;glass=0;strokeWidth=1;shadow=0;" parent="WIyWlLk6GJQsqaUBKTNV-1" vertex="1">
-          <mxGeometry x="374" y="695" width="80" height="80" as="geometry" />
+          <mxGeometry x="374" y="795" width="80" height="80" as="geometry" />
         </mxCell>
         <mxCell id="_cZhBR9zeCpMvIpinUDM-24" value="C" style="ellipse;whiteSpace=wrap;html=1;rounded=1;glass=0;strokeWidth=1;shadow=0;" parent="WIyWlLk6GJQsqaUBKTNV-1" vertex="1">
-          <mxGeometry x="634" y="545" width="80" height="80" as="geometry" />
+          <mxGeometry x="634" y="645" width="80" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="R397QdPTaHsXT1_BaVMT-3" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="WIyWlLk6GJQsqaUBKTNV-1" source="R397QdPTaHsXT1_BaVMT-0" target="_cZhBR9zeCpMvIpinUDM-3">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="R397QdPTaHsXT1_BaVMT-0" value="Get current parameter setting from eeprom" style="whiteSpace=wrap;html=1;rounded=1;glass=0;strokeWidth=1;shadow=0;" vertex="1" parent="WIyWlLk6GJQsqaUBKTNV-1">
+          <mxGeometry x="329" y="370" width="170" height="60" as="geometry" />
         </mxCell>
       </root>
     </mxGraphModel>
